@@ -96,12 +96,12 @@ Fluxo de Leitura Ativo
 </h2>
 <div class="p-4 bg-indigo-50 border border-indigo-200 rounded-xl text-sm text-indigo-900 space-y-2">
 <p class="font-semibold flex items-center gap-1.5">
-<i data-lucide="zap" class="w-4 h-4 text-amber-500"></i> Modos de Bip Automático:
+<i data-lucide="zap" class="w-4 h-4 text-amber-500"></i> Como Funciona:
 </p>
 <ul class="list-disc list-inside text-xs text-indigo-800 space-y-1">
-<li>Ao bipar um código EAN, a câmera abre a janela de quantidade.</li>
-<li>Informe se é <strong>Entrada (+), Saída (-) ou Defina a Qtd Exata</strong>.</li>
-<li>Ao confirmar, a gravação é feita e a câmera volta a ler o próximo item automaticamente!</li>
+<li>Apunte a câmera para o código de barras (EAN).</li>
+<li>Informe a quantidade e selecione: <strong>Somar (+), Subtrair (-) ou Definir Total</strong>.</li>
+<li>Ao confirmar, o item é gravado e a câmera volta a ler o próximo produto!</li>
 </ul>
 </div>
 
@@ -156,9 +156,9 @@ Total de itens cadastrados: <span id="totalItemsCount" class="font-bold text-sla
 
 </main>
 
-<!-- MODAL 1: QUANTIDADE APÓS BIPAR CÓDIGO (NOVO FLUXO) -->
+<!-- MODAL 1: QUANTIDADE APÓS BIPAR CÓDIGO -->
 <div id="qtyModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-<div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-150">
+<div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
 
 <div class="p-4 bg-indigo-600 text-white flex justify-between items-center">
 <h3 class="font-bold text-base flex items-center gap-2">
@@ -270,7 +270,7 @@ let inventory = JSON.parse(localStorage.getItem('inventory_db')) || [];
 let html5QrcodeScanner = null;
 let isCamScanning = false;
 let activeEan = "";
-let currentQtyOp = "add"; // 'add', 'sub', 'set'
+let currentQtyOp = "add";
 let rawImportData = [];
 
 // Web Audio API para Som
@@ -300,7 +300,6 @@ document.getElementById('btnToggleCam').addEventListener('click', toggleCamera);
 document.getElementById('btnSaveQtyModal').addEventListener('click', confirmAndNextScan);
 document.getElementById('btnCancelQtyModal').addEventListener('click', cancelQtyModal);
 
-// Permitir confirmar pressionando 'Enter' no campo de quantidade
 document.getElementById('modalQtyInput').addEventListener('keyup', (e) => {
 if (e.key === 'Enter') confirmAndNextScan();
 });
@@ -434,7 +433,6 @@ function onScanSuccess(decodedText) {
 playBeep();
 activeEan = decodedText;
 
-// Pausa a câmera para o usuário digitar a quantidade
 if (html5QrcodeScanner && isCamScanning) {
 html5QrcodeScanner.pause(true);
 }
@@ -519,14 +517,11 @@ cat: 'Geral'
 
 saveToStorage();
 
-// Feedback visual na tela principal
 document.getElementById('scanMsg').textContent = `Gravado: ${desc} (${amount} un)`;
 document.getElementById('scanEan').textContent = activeEan;
 
-// Fecha o Modal
 document.getElementById('qtyModal').classList.add('hidden');
 
-// Reativa a câmera imediatamente para próxima leitura!
 if (html5QrcodeScanner && isCamScanning) {
 setTimeout(() => {
 html5QrcodeScanner.resume();
@@ -644,4 +639,3 @@ document.body.removeChild(link);
 </script>
 </body>
 </html>
-
