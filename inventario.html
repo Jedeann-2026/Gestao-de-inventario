@@ -12,13 +12,13 @@
 <script src="https://unpkg.com/lucide@latest"></script>
 
 <!-- HTML5 QR Code / Barcode Scanner -->
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 
-<!-- SheetJS (Para ler Excel .xlsx / .xls) -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- SheetJS (Excel) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-<!-- PapaParse (Para ler arquivos CSV) -->
-<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<!-- PapaParse (CSV) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
 <style>
 #reader video {
@@ -99,7 +99,7 @@ Fluxo de Leitura Ativo
 <i data-lucide="zap" class="w-4 h-4 text-amber-500"></i> Como Funciona:
 </p>
 <ul class="list-disc list-inside text-xs text-indigo-800 space-y-1">
-<li>Apunte a câmera para o código de barras (EAN).</li>
+<li>Aponte a câmera para o código de barras (EAN).</li>
 <li>Informe a quantidade e selecione: <strong>Somar (+), Subtrair (-) ou Definir Total</strong>.</li>
 <li>Ao confirmar, o item é gravado e a câmera volta a ler o próximo produto!</li>
 </ul>
@@ -147,7 +147,7 @@ Total de itens cadastrados: <span id="totalItemsCount" class="font-bold text-sla
 </div>
 
 <!-- Sem itens -->
-<div id="emptyState" class="p-8 text-center hidden">
+<div id="emptyState" class="p-8 text-center">
 <i data-lucide="box" class="w-12 h-12 text-slate-300 mx-auto mb-2"></i>
 <p class="text-slate-500 font-medium">Nenhum produto cadastrado no estoque.</p>
 <p class="text-slate-400 text-xs">Importe um arquivo CSV/Excel ou bipe um novo produto.</p>
@@ -265,17 +265,28 @@ Selecione um arquivo <strong>CSV, TXT ou Excel (.xlsx, .xls)</strong> contendo o
 
 <!-- SCRIPT JS -->
 <script>
-// --- ESTADO ---
-let inventory = JSON.parse(localStorage.getItem('inventory_db')) || [];
+let inventory = [];
+try {
+inventory = JSON.parse(localStorage.getItem('inventory_db')) || [];
+} catch(e) {
+inventory = [];
+}
+
 let html5QrcodeScanner = null;
 let isCamScanning = false;
 let activeEan = "";
 let currentQtyOp = "add";
 let rawImportData = [];
 
-// Web Audio API para Som
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function initIcons() {
+if (window.lucide) {
+window.lucide.createIcons();
+}
+}
+
 function playBeep(freq = 1040, duration = 0.12) {
+try {
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 if (audioCtx.state === 'suspended') audioCtx.resume();
 const osc = audioCtx.createOscillator();
 const gain = audioCtx.createGain();
@@ -286,25 +297,32 @@ osc.connect(gain);
 gain.connect(audioCtx.destination);
 osc.start();
 osc.stop(audioCtx.currentTime + duration);
+} catch(e) {}
 }
 
-// --- INICIALIZAÇÃO ---
 document.addEventListener('DOMContentLoaded', () => {
-lucide.createIcons();
+initIcons();
 renderInventory();
 
-document.getElementById('searchInput').addEventListener('input', renderInventory);
-document.getElementById('btnToggleCam').addEventListener('click', toggleCamera);
+const searchInput = document.getElementById('searchInput');
+if(searchInput) searchInput.addEventListener('input', renderInventory);
 
-// Modal Qty Listeners
-document.getElementById('btnSaveQtyModal').addEventListener('click', confirmAndNextScan);
-document.getElementById('btnCancelQtyModal').addEventListener('click', cancelQtyModal);
+const btnToggleCam = document.getElementById('btnToggleCam');
+if(btnToggleCam) btnToggleCam.addEventListener('click', toggleCamera);
 
-document.getElementById('modalQtyInput').addEventListener('keyup', (e) => {
+const btnSaveQtyModal = document.getElementById('btnSaveQtyModal');
+if(btnSaveQtyModal) btnSaveQtyModal.addEventListener('click', confirmAndNextScan);
+
+const btnCancelQtyModal = document.getElementById('btnCancelQtyModal');
+if(btnCancelQtyModal) btnCancelQtyModal.addEventListener('click', cancelQtyModal);
+
+const modalQtyInput = document.getElementById('modalQtyInput');
+if(modalQtyInput) {
+modalQtyInput.addEventListener('keyup', (e) => {
 if (e.key === 'Enter') confirmAndNextScan();
 });
+}
 
-// Modal Import Listeners
 document.getElementById('btnOpenImportModal').addEventListener('click', () => openImportModal(true));
 document.getElementById('btnCloseImportModal').addEventListener('click', () => openImportModal(false));
 document.getElementById('btnCancelImport').addEventListener('click', () => openImportModal(false));
@@ -313,17 +331,18 @@ document.getElementById('btnConfirmImport').addEventListener('click', executeImp
 document.getElementById('btnExportCSV').addEventListener('click', exportToCSV);
 });
 
-// --- RENDERIZAR TABELA ---
 function renderInventory() {
 const tbody = document.getElementById('inventoryTable');
 const emptyState = document.getElementById('emptyState');
-const search = document.getElementById('searchInput').value.toLowerCase().trim();
+const searchEl = document.getElementById('searchInput');
+const search = searchEl ? searchEl.value.toLowerCase().trim() : '';
 
+if(!tbody) return;
 tbody.innerHTML = '';
 
 const filtered = inventory.filter(item =>
-item.ean.toLowerCase().includes(search) ||
-item.desc.toLowerCase().includes(search) ||
+(item.ean && item.ean.toLowerCase().includes(search)) ||
+(item.desc && item.desc.toLowerCase().includes(search)) ||
 (item.cat && item.cat.toLowerCase().includes(search))
 );
 
@@ -357,7 +376,7 @@ tr.innerHTML = `
 `;
 tbody.appendChild(tr);
 });
-lucide.createIcons();
+initIcons();
 }
 }
 
@@ -381,7 +400,6 @@ saveToStorage();
 }
 }
 
-// --- GERENCIAMENTO DA CÂMERA ---
 function toggleCamera() {
 if (isCamScanning) {
 stopCamera();
@@ -396,8 +414,7 @@ html5QrcodeScanner = new Html5Qrcode("reader");
 
 const config = {
 fps: 15,
-qrbox: { width: 280, height: 160 },
-experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+qrbox: { width: 280, height: 160 }
 };
 
 html5QrcodeScanner.start(
@@ -428,7 +445,6 @@ document.getElementById('scanner-placeholder').classList.remove('hidden');
 }
 }
 
-// --- LEITURA DO CÓDIGO E ABERTURA DO MODAL DE QUANTIDADE ---
 function onScanSuccess(decodedText) {
 playBeep();
 activeEan = decodedText;
@@ -490,7 +506,6 @@ let currentVal = parseInt(input.value) || 0;
 input.value = Math.max(1, currentVal + val);
 }
 
-// --- CONFIRMAR QUANTIDADE E RETORNAR CÂMERA AUTOMATICAMENTE ---
 function confirmAndNextScan() {
 const desc = document.getElementById('modalDescInput').value.trim() || `Produto ${activeEan}`;
 const amount = Math.max(0, parseInt(document.getElementById('modalQtyInput').value) || 0);
@@ -536,7 +551,6 @@ html5QrcodeScanner.resume();
 }
 }
 
-// --- IMPORTAÇÃO E EXPORTAÇÃO ---
 function openImportModal(show) {
 const modal = document.getElementById('importModal');
 if (show) {
