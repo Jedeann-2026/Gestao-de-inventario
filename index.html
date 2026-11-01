@@ -30,7 +30,7 @@
                 </div>
                 <div>
                     <h1 class="text-lg font-bold tracking-tight text-amber-400">NEXXA Scanner</h1>
-                    <p class="text-[10px] text-slate-400">Estoque por Cliente & CD</p>
+                    <p class="text-[10px] text-slate-400">Estoque e Preços por Cliente & CD</p>
                 </div>
             </div>
             <button id="btn-config" class="text-slate-400 hover:text-white p-2 rounded-lg transition" title="Configurações Supabase">
@@ -86,33 +86,30 @@
                 </div>
             </div>
 
-            <!-- Resumo Geral (Totais + Preço) -->
-            <div class="grid grid-cols-3 gap-2 text-center">
-                <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
-                    <span class="text-[10px] text-slate-400 block mb-0.5">Preço Unit.</span>
-                    <span id="res-price" class="text-sm font-bold text-emerald-400">R$ 0,00</span>
-                </div>
+            <!-- Resumo dos Totais de Estoque -->
+            <div class="grid grid-cols-2 gap-2 text-center">
                 <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
                     <span class="text-[10px] text-slate-400 block mb-0.5">Estoque CD</span>
-                    <span id="res-stock-cd" class="text-sm font-bold text-blue-400">0</span>
+                    <span id="res-stock-cd" class="text-base font-bold text-blue-400">0</span>
                 </div>
                 <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
-                    <span class="text-[10px] text-slate-400 block mb-0.5">Est. Total</span>
-                    <span id="res-stock-total" class="text-sm font-bold text-white">0</span>
+                    <span class="text-[10px] text-slate-400 block mb-0.5">Estoque Total</span>
+                    <span id="res-stock-total" class="text-base font-bold text-white">0</span>
                 </div>
             </div>
 
-            <!-- Tabela Detalhada por Cliente / Loja -->
+            <!-- Tabela Detalhada: Preço de Venda + Estoque por Cliente / Loja -->
             <div class="space-y-2">
                 <h3 class="text-xs font-bold text-amber-400 flex items-center gap-1.5">
-                    <i class="fa-solid fa-store"></i> Estoque por Cliente / Loja
+                    <i class="fa-solid fa-store"></i> Detalhamento por Cliente / Loja
                 </h3>
-                <div class="overflow-x-auto rounded-xl border border-slate-800 max-h-60 overflow-y-auto">
+                <div class="overflow-x-auto rounded-xl border border-slate-800 max-h-64 overflow-y-auto">
                     <table class="w-full text-left border-collapse text-xs whitespace-nowrap">
                         <thead>
                             <tr class="bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 sticky top-0">
                                 <th class="p-2.5 font-semibold">Cliente / Loja</th>
-                                <th class="p-2.5 font-semibold text-center text-emerald-400">Est. Loja</th>
+                                <th class="p-2.5 font-semibold text-right text-emerald-400">Preço Venda</th>
+                                <th class="p-2.5 font-semibold text-center text-emerald-300">Est. Loja</th>
                                 <th class="p-2.5 font-semibold text-center text-blue-400">Est. CD</th>
                             </tr>
                         </thead>
@@ -154,7 +151,7 @@
 
     <script>
         const DEFAULT_URL = "https://mjkqkyuolsqhtxwzivof.supabase.co";
-        const DEFAULT_KEY = "SUA_ANON_KEY_AQUI"; // Coloque a sua chave pública aqui
+        const DEFAULT_KEY = "SUA_ANON_KEY_AQUI";
 
         let supabaseUrl = localStorage.getItem('nexxa_sb_url') || DEFAULT_URL;
         let supabaseKey = localStorage.getItem('nexxa_sb_key') || DEFAULT_KEY;
@@ -239,7 +236,7 @@
                 return;
             }
 
-            showAlert(`Buscando "${termo}" em todos os clientes...`, 'info');
+            showAlert(`Buscando "${termo}"...`, 'info');
 
             try {
                 const { data: cloudData, error } = await supabaseClient.from('nexxa_store').select('*');
@@ -252,11 +249,10 @@
 
                 const termoUpper = termo.toUpperCase();
                 let produtoInfo = null;
-                let clientStockMap = {};
+                let clientDetailsMap = {}; // Guarda { cliente: { estoque: 0, preco: 0 } }
                 let estoqueCdTotal = 0;
-                let precoVenda = 0;
 
-                // 1. PROCESSAR DADOS DE ESTOQUE (Agrupando por cliente e CD)
+                // 1. EXTRAIR ESTOQUE POR CLIENTE / CD
                 const registroEstoque = cloudData.find(d => d.id === 'estoque' || d.id === 'ESTOQUE');
                 if (registroEstoque && registroEstoque.data) {
                     const estoqueObj = registroEstoque.data;
@@ -278,39 +274,51 @@
                             const clienteNome = (item.cliente || 'Geral').trim();
                             const qtdEstoque = Number(item.estoque) || 0;
 
-                            // Verifica se é o CD
                             if (clienteNome.toUpperCase().startsWith('CD')) {
                                 estoqueCdTotal += qtdEstoque;
                             } else {
-                                clientStockMap[clienteNome] = (clientStockMap[clienteNome] || 0) + qtdEstoque;
+                                if (!clientDetailsMap[clienteNome]) {
+                                    clientDetailsMap[clienteNome] = { estoque: 0, preco: 0 };
+                                }
+                                clientDetailsMap[clienteNome].estoque += qtdEstoque;
                             }
                         }
                     }
                 }
 
-                // 2. PROCESSAR DADOS DE VENDAS (Para extrair o preço praticado)
+                // 2. EXTRAIR PREÇO DE VENDA ESPECÍFICO POR CLIENTE (DA TABELA DE VENDAS)
                 const registroVendas = cloudData.find(d => d.id === 'vendas');
                 if (registroVendas && registroVendas.data && Array.isArray(registroVendas.data)) {
                     const vendasArr = registroVendas.data;
-                    const vendaItem = vendasArr.find(v => 
-                        (v.ean && String(v.ean).trim() === termo) || 
-                        (v.produto && String(v.produto).trim().toUpperCase().includes(termoUpper))
-                    );
+                    
+                    vendasArr.forEach(v => {
+                        const cleanEan = v.ean ? String(v.ean).trim() : '';
+                        const cleanName = v.produto ? String(v.produto).trim().toUpperCase() : '';
 
-                    if (vendaItem) {
-                        precoVenda = vendaItem.vlrUnit || 0;
-                        if (!produtoInfo) {
-                            produtoInfo = {
-                                codigo: vendaItem.ean || 'S/EAN',
-                                descricao: vendaItem.produto,
-                                categoria: vendaItem.categoria || 'GERAL'
-                            };
+                        if ((cleanEan && cleanEan === termo) || (cleanName && cleanName.includes(termoUpper))) {
+                            if (!produtoInfo) {
+                                produtoInfo = {
+                                    codigo: v.ean || 'S/EAN',
+                                    descricao: v.produto,
+                                    categoria: v.categoria || 'GERAL'
+                                };
+                            }
+
+                            const clienteNome = (v.cliente || 'Geral').trim();
+                            const precoPraticado = parseFloat(v.vlrUnit || 0);
+
+                            if (!clientDetailsMap[clienteNome]) {
+                                clientDetailsMap[clienteNome] = { estoque: 0, preco: precoPraticado };
+                            } else {
+                                // Atualiza o preço praticado naquele cliente
+                                clientDetailsMap[clienteNome].preco = precoPraticado;
+                            }
                         }
-                    }
+                    });
                 }
 
                 if (produtoInfo) {
-                    exibirResultadoDetalhado(produtoInfo, clientStockMap, estoqueCdTotal, precoVenda);
+                    exibirResultadoDetalhado(produtoInfo, clientDetailsMap, estoqueCdTotal);
                     hideAlert();
                 } else {
                     resultCard.classList.add('hidden');
@@ -323,27 +331,29 @@
             }
         }
 
-        function exibirResultadoDetalhado(info, clientStockMap, estoqueCd, preco) {
+        function exibirResultadoDetalhado(info, clientDetailsMap, estoqueCd) {
             document.getElementById('res-code').innerText = info.codigo || 'S/EAN';
             document.getElementById('res-desc').innerText = info.descricao || 'Sem Descrição';
             document.getElementById('res-cat').innerText = info.categoria || 'GERAL';
-            
-            document.getElementById('res-price').innerText = parseFloat(preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
             document.getElementById('res-stock-cd').innerText = estoqueCd;
 
-            // Renderizar Tabela de Clientes
+            // Renderizar Tabela de Clientes com Preço e Estoque
             const tbody = document.getElementById('client-stock-table-body');
             tbody.innerHTML = '';
 
             let estoqueLojasTotal = 0;
-            const clientesList = Object.keys(clientStockMap).sort();
+            const clientesList = Object.keys(clientDetailsMap).sort();
 
             if (clientesList.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" class="p-3 text-center text-slate-500">Nenhum estoque em lojas encontrado.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" class="p-3 text-center text-slate-500">Nenhum dado por loja encontrado.</td></tr>`;
             } else {
                 clientesList.forEach(cliente => {
-                    const qtd = clientStockMap[cliente];
-                    estoqueLojasTotal += qtd;
+                    const dados = clientDetailsMap[cliente];
+                    estoqueLojasTotal += dados.estoque;
+
+                    const precoFmt = dados.preco > 0 
+                        ? dados.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                        : 'R$ 0,00';
 
                     const tr = document.createElement('tr');
                     tr.className = "hover:bg-slate-800/50 transition-colors";
@@ -351,7 +361,8 @@
                         <td class="p-2.5 font-semibold text-slate-100 flex items-center gap-1.5">
                             <i class="fa-solid fa-store text-amber-400 text-[10px]"></i> ${cliente}
                         </td>
-                        <td class="p-2.5 text-center font-bold text-emerald-400">${qtd}</td>
+                        <td class="p-2.5 text-right font-bold text-emerald-400">${precoFmt}</td>
+                        <td class="p-2.5 text-center font-bold text-emerald-300">${dados.estoque}</td>
                         <td class="p-2.5 text-center font-bold text-blue-400">${estoqueCd}</td>
                     `;
                     tbody.appendChild(tr);
