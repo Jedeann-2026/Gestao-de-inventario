@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Consulta Nexxa - Leitor de Código de Barras</title>
-    <!-- Tailwind CSS para interface responsiva -->
+    <title>Nexxa Scanner - Leitura Detalhada de Estoque</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome para ícones -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -19,16 +19,21 @@
         }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen flex flex-col font-sans">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
 
     <!-- Header -->
-    <header class="bg-gray-800 border-b border-gray-700 p-4 sticky top-0 z-50">
+    <header class="bg-slate-900 border-b border-slate-800 p-4 sticky top-0 z-50 shadow-md">
         <div class="max-w-md mx-auto flex justify-between items-center">
             <div class="flex items-center space-x-2">
-                <i class="fa-solid fa-barcode text-blue-500 text-2xl"></i>
-                <h1 class="text-xl font-bold tracking-wide text-white">Nexxa Scanner</h1>
+                <div class="bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
+                    <i class="fa-solid fa-barcode text-amber-400 text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight text-amber-400">NEXXA Scanner</h1>
+                    <p class="text-[10px] text-slate-400">Estoque por Cliente & CD</p>
+                </div>
             </div>
-            <button id="btn-config" class="text-gray-400 hover:text-white p-2 rounded-lg transition" title="Configurações Supabase">
+            <button id="btn-config" class="text-slate-400 hover:text-white p-2 rounded-lg transition" title="Configurações Supabase">
                 <i class="fa-solid fa-gear text-lg"></i>
             </button>
         </div>
@@ -37,112 +42,127 @@
     <main class="flex-1 max-w-md w-full mx-auto p-4 space-y-4">
 
         <!-- Card da Câmera -->
-        <div class="bg-gray-800 rounded-xl p-4 border border-gray-700 shadow-xl">
+        <div class="bg-slate-900 rounded-2xl p-4 border border-slate-800 shadow-xl">
             <div id="reader-container" class="relative">
-                <div id="reader" class="w-full bg-black rounded-lg overflow-hidden min-h-[220px] flex items-center justify-center">
-                    <div id="camera-placeholder" class="text-center p-6 text-gray-500">
-                        <i class="fa-solid fa-camera text-4xl mb-2"></i>
-                        <p class="text-sm">Clique no botão abaixo para ativar a câmera</p>
+                <div id="reader" class="w-full bg-black rounded-xl overflow-hidden min-h-[220px] flex items-center justify-center">
+                    <div id="camera-placeholder" class="text-center p-6 text-slate-500">
+                        <i class="fa-solid fa-camera text-4xl mb-2 text-slate-600"></i>
+                        <p class="text-xs text-slate-400">Clique abaixo para ativar a câmera</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Botões de Ação da Câmera -->
-            <div class="mt-4 flex gap-2">
-                <button id="btn-scan" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-2 shadow-lg transition">
+            <!-- Botão de Ação -->
+            <div class="mt-4">
+                <button id="btn-scan" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition">
                     <i class="fa-solid fa-camera"></i>
-                    <span id="scan-btn-text">Escanear Produto</span>
-                </button>
-                <button id="btn-torch" class="hidden bg-gray-700 hover:bg-gray-600 text-yellow-400 p-3 rounded-lg transition" title="Alternar Lanterna">
-                    <i class="fa-solid fa-lightbulb"></i>
+                    <span id="scan-btn-text">Escanear Código de Barras</span>
                 </button>
             </div>
         </div>
 
         <!-- Busca Manual -->
-        <div class="bg-gray-800 rounded-xl p-4 border border-gray-700">
+        <div class="bg-slate-900 rounded-2xl p-3 border border-slate-800">
             <form id="form-manual" class="flex gap-2">
-                <input type="text" id="input-search" placeholder="Digitar código de barras ou nome..." class="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
-                <button type="submit" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium text-sm transition">
+                <input type="text" id="input-search" placeholder="Digitar EAN ou nome do produto..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-amber-400">
+                <button type="submit" class="bg-slate-800 hover:bg-slate-700 text-amber-400 px-4 py-2 rounded-xl font-medium text-xs transition border border-slate-700">
                     <i class="fa-solid fa-magnifying-glass"></i>
                 </button>
             </form>
         </div>
 
-        <!-- Feedback de Erro / Alertas -->
-        <div id="status-alert" class="hidden p-3 rounded-lg text-sm text-center font-medium"></div>
+        <!-- Feedback / Status -->
+        <div id="status-alert" class="hidden p-3 rounded-xl text-xs text-center font-medium"></div>
 
         <!-- Card de Resultado do Produto -->
-        <div id="result-card" class="hidden bg-gray-800 rounded-xl p-5 border border-gray-700 shadow-xl space-y-4">
-            <div class="border-b border-gray-700 pb-3 flex justify-between items-start">
+        <div id="result-card" class="hidden bg-slate-900 rounded-2xl p-4 border border-slate-800 shadow-xl space-y-4">
+            
+            <!-- Cabeçalho do Produto -->
+            <div class="border-b border-slate-800 pb-3 flex justify-between items-start gap-2">
                 <div>
-                    <span id="res-code" class="text-xs font-mono bg-gray-700 text-blue-400 px-2 py-1 rounded">--</span>
-                    <h2 id="res-desc" class="text-lg font-bold text-white mt-2 leading-tight">--</h2>
-                </div>
-                <span class="bg-blue-900/50 text-blue-300 text-xs px-2 py-1 rounded border border-blue-800 font-semibold">Base Nexxa</span>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-                <div class="bg-gray-900/60 p-3 rounded-lg border border-gray-700/50">
-                    <span class="text-xs text-gray-400 block mb-1">Preço de Venda</span>
-                    <span id="res-price" class="text-xl font-bold text-emerald-400">R$ 0,00</span>
-                </div>
-                <div class="bg-gray-900/60 p-3 rounded-lg border border-gray-700/50">
-                    <span class="text-xs text-gray-400 block mb-1">Estoque Atual</span>
-                    <span id="res-stock" class="text-xl font-bold text-white">0</span>
+                    <span id="res-code" class="text-[10px] font-mono bg-slate-800 text-amber-400 px-2 py-1 rounded border border-slate-700">--</span>
+                    <h2 id="res-desc" class="text-base font-bold text-white mt-2 leading-tight">--</h2>
+                    <span id="res-cat" class="inline-block mt-1 text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700">GERAL</span>
                 </div>
             </div>
 
-            <div class="bg-gray-900/40 p-3 rounded-lg border border-gray-700/30 flex justify-between items-center text-sm">
-                <span class="text-gray-400"><i class="fa-solid fa-user text-xs mr-1"></i> Cliente / Ref:</span>
-                <span id="res-client" class="text-gray-200 font-medium">--</span>
+            <!-- Resumo Geral (Totais + Preço) -->
+            <div class="grid grid-cols-3 gap-2 text-center">
+                <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                    <span class="text-[10px] text-slate-400 block mb-0.5">Preço Unit.</span>
+                    <span id="res-price" class="text-sm font-bold text-emerald-400">R$ 0,00</span>
+                </div>
+                <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                    <span class="text-[10px] text-slate-400 block mb-0.5">Estoque CD</span>
+                    <span id="res-stock-cd" class="text-sm font-bold text-blue-400">0</span>
+                </div>
+                <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                    <span class="text-[10px] text-slate-400 block mb-0.5">Est. Total</span>
+                    <span id="res-stock-total" class="text-sm font-bold text-white">0</span>
+                </div>
             </div>
+
+            <!-- Tabela Detalhada por Cliente / Loja -->
+            <div class="space-y-2">
+                <h3 class="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                    <i class="fa-solid fa-store"></i> Estoque por Cliente / Loja
+                </h3>
+                <div class="overflow-x-auto rounded-xl border border-slate-800 max-h-60 overflow-y-auto">
+                    <table class="w-full text-left border-collapse text-xs whitespace-nowrap">
+                        <thead>
+                            <tr class="bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 sticky top-0">
+                                <th class="p-2.5 font-semibold">Cliente / Loja</th>
+                                <th class="p-2.5 font-semibold text-center text-emerald-400">Est. Loja</th>
+                                <th class="p-2.5 font-semibold text-center text-blue-400">Est. CD</th>
+                            </tr>
+                        </thead>
+                        <tbody id="client-stock-table-body" class="divide-y divide-slate-800 text-slate-200">
+                            <!-- Preenchido via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
         </div>
 
     </main>
 
-    <!-- Modal de Configuração do Supabase -->
+    <!-- Modal de Configuração -->
     <div id="modal-config" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-gray-800 border border-gray-700 rounded-xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
-            <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                <i class="fa-solid fa-database text-blue-500"></i> Conexão Supabase
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-database text-amber-400"></i> Configuração Supabase
             </h3>
-            <p class="text-xs text-gray-400">Insira suas credenciais para consultar a tabela <code class="bg-gray-900 px-1 py-0.5 rounded text-blue-300">nexxa_store</code>.</p>
             
-            <div class="space-y-3">
+            <div class="space-y-3 text-xs">
                 <div>
-                    <label class="text-xs font-semibold text-gray-300 block mb-1">Supabase URL</label>
-                    <input type="text" id="cfg-url" placeholder="https://xyz.supabase.co" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                    <label class="font-semibold text-slate-300 block mb-1">URL Supabase</label>
+                    <input type="text" id="cfg-url" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-amber-400">
                 </div>
                 <div>
-                    <label class="text-xs font-semibold text-gray-300 block mb-1">Anon Key (Pública)</label>
-                    <input type="password" id="cfg-key" placeholder="eyJh..." class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-blue-500">
-                </div>
-                <div>
-                    <label class="text-xs font-semibold text-gray-300 block mb-1">Nome da Coluna do Código</label>
-                    <input type="text" id="cfg-col" value="codigo_barras" placeholder="codigo_barras" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                    <label class="font-semibold text-slate-300 block mb-1">Anon Key (Chave Pública)</label>
+                    <input type="password" id="cfg-key" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-amber-400">
                 </div>
             </div>
 
             <div class="flex gap-2 pt-2">
-                <button id="btn-save-cfg" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 rounded-lg text-sm transition">Salvar Conexão</button>
-                <button id="btn-close-cfg" class="bg-gray-700 hover:bg-gray-600 text-gray-300 py-2 px-4 rounded-lg text-sm transition">Cancelar</button>
+                <button id="btn-save-cfg" class="flex-1 bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold py-2 rounded-xl text-xs transition">Salvar</button>
+                <button id="btn-close-cfg" class="bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 px-4 rounded-xl text-xs transition">Cancelar</button>
             </div>
         </div>
     </div>
 
-    <!-- Script da Aplicação -->
     <script>
-        // Configurações Padrão
-        let supabaseUrl = localStorage.getItem('nexxa_sb_url') || '';
-        let supabaseKey = localStorage.getItem('nexxa_sb_key') || '';
-        let barcodeCol  = localStorage.getItem('nexxa_sb_col') || 'codigo_barras';
+        const DEFAULT_URL = "https://mjkqkyuolsqhtxwzivof.supabase.co";
+        const DEFAULT_KEY = "SUA_ANON_KEY_AQUI"; // Coloque a sua chave pública aqui
+
+        let supabaseUrl = localStorage.getItem('nexxa_sb_url') || DEFAULT_URL;
+        let supabaseKey = localStorage.getItem('nexxa_sb_key') || DEFAULT_KEY;
         let supabaseClient = null;
 
         let html5QrCode = null;
         let isScanning = false;
 
-        // Elementos DOM
         const btnScan = document.getElementById('btn-scan');
         const scanBtnText = document.getElementById('scan-btn-text');
         const btnConfig = document.getElementById('btn-config');
@@ -154,55 +174,45 @@
         const resultCard = document.getElementById('result-card');
         const statusAlert = document.getElementById('status-alert');
 
-        // Inicializa Cliente Supabase
         function initSupabase() {
-            if (supabaseUrl && supabaseKey) {
+            if (supabaseUrl && supabaseKey && supabaseKey !== 'SUA_ANON_KEY_AQUI') {
                 try {
                     supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
-                    showAlert('Conectado ao Supabase com sucesso!', 'success');
+                    showAlert('Base Nexxa conectada com sucesso!', 'success');
+                    setTimeout(hideAlert, 2000);
                 } catch (e) {
-                    showAlert('Erro ao inicializar Supabase. Verifique a URL/Key.', 'error');
+                    showAlert('Erro ao conectar ao Supabase.', 'error');
                 }
             } else {
-                showAlert('Configure sua URL e Anon Key do Supabase no ícone de engrenagem.', 'warning');
+                showAlert('Configure a Anon Key nas configurações (⚙).', 'warning');
             }
         }
 
-        // Toggle Câmera
         btnScan.addEventListener('click', () => {
-            if (isScanning) {
-                stopScanner();
-            } else {
-                startScanner();
-            }
+            if (isScanning) stopScanner();
+            else startScanner();
         });
 
         function startScanner() {
             document.getElementById('camera-placeholder').classList.add('hidden');
             html5QrCode = new Html5Qrcode("reader");
 
-            const config = { 
-                fps: 10, 
-                qrbox: { width: 250, height: 150 },
-                aspectRatio: 1.0
-            };
+            const config = { fps: 10, qrbox: { width: 250, height: 150 }, aspectRatio: 1.0 };
 
             html5QrCode.start(
-                { facingMode: "environment" }, // Câmera Traseira
+                { facingMode: "environment" },
                 config,
                 async (decodedText) => {
-                    // Código Lido com Sucesso
                     stopScanner();
-                    buscarProduto(decodedText.trim());
+                    buscarProdutoBaseNexxa(decodedText.trim());
                 },
-                (errorMessage) => {
-                    // Erros contínuos de leitura (podem ser ignorados)
-                }
+                (errorMessage) => {}
             ).then(() => {
                 isScanning = true;
                 scanBtnText.innerText = "Parar Câmera";
-                btnScan.classList.replace('bg-blue-600', 'bg-red-600');
-                btnScan.classList.replace('hover:bg-blue-500', 'hover:bg-red-500');
+                btnScan.classList.replace('bg-amber-500', 'bg-rose-600');
+                btnScan.classList.replace('hover:bg-amber-600', 'hover:bg-rose-700');
+                btnScan.classList.replace('text-slate-950', 'text-white');
             }).catch(err => {
                 showAlert("Erro ao acessar a câmera: " + err, "error");
                 document.getElementById('camera-placeholder').classList.remove('hidden');
@@ -214,94 +224,159 @@
                 html5QrCode.stop().then(() => {
                     html5QrCode.clear();
                     isScanning = false;
-                    scanBtnText.innerText = "Escanear Produto";
-                    btnScan.classList.replace('bg-red-600', 'bg-blue-600');
-                    btnScan.classList.replace('hover:bg-red-500', 'hover:bg-blue-500');
+                    scanBtnText.innerText = "Escanear Código de Barras";
+                    btnScan.classList.replace('bg-rose-600', 'bg-amber-500');
+                    btnScan.classList.replace('hover:bg-rose-700', 'hover:bg-amber-600');
+                    btnScan.classList.replace('text-white', 'text-slate-950');
                 });
             }
         }
 
-        // Busca de Produtos (Supabase)
-        async function buscarProduto(termo) {
+        async function buscarProdutoBaseNexxa(termo) {
             if (!termo) return;
-
             if (!supabaseClient) {
-                showAlert('Por favor, configure as chaves do Supabase primeiro.', 'warning');
+                showAlert('Configure as credenciais do Supabase.', 'warning');
                 return;
             }
 
-            showAlert(`Consultando "${termo}" na base...`, 'info');
+            showAlert(`Buscando "${termo}" em todos os clientes...`, 'info');
 
             try {
-                // Tenta consultar por código de barras primeiro
-                let query = supabaseClient
-                    .from('nexxa_store')
-                    .select('*')
-                    .eq(barcodeCol, termo);
-
-                let { data, error } = await query;
-
-                // Se não achou pelo código exato, tenta buscar por descrição (LIKE)
-                if ((!data || data.length === 0) && isNaN(termo)) {
-                    let descQuery = await supabaseClient
-                        .from('nexxa_store')
-                        .select('*')
-                        .ilike('descricao', `%${termo}%`)
-                        .limit(1);
-                    data = descQuery.data;
-                    error = descQuery.error;
-                }
-
+                const { data: cloudData, error } = await supabaseClient.from('nexxa_store').select('*');
                 if (error) throw error;
 
-                if (data && data.length > 0) {
-                    exibirProduto(data[0]);
+                if (!cloudData || cloudData.length === 0) {
+                    showAlert('Nenhum registro encontrado na base nexxa_store.', 'error');
+                    return;
+                }
+
+                const termoUpper = termo.toUpperCase();
+                let produtoInfo = null;
+                let clientStockMap = {};
+                let estoqueCdTotal = 0;
+                let precoVenda = 0;
+
+                // 1. PROCESSAR DADOS DE ESTOQUE (Agrupando por cliente e CD)
+                const registroEstoque = cloudData.find(d => d.id === 'estoque' || d.id === 'ESTOQUE');
+                if (registroEstoque && registroEstoque.data) {
+                    const estoqueObj = registroEstoque.data;
+
+                    for (let key in estoqueObj) {
+                        const item = estoqueObj[key];
+                        const cleanEan = item.ean ? String(item.ean).trim() : '';
+                        const cleanName = item.produto ? String(item.produto).trim().toUpperCase() : '';
+
+                        if ((cleanEan && cleanEan === termo) || (cleanName && cleanName.includes(termoUpper))) {
+                            if (!produtoInfo) {
+                                produtoInfo = {
+                                    codigo: item.ean || 'S/EAN',
+                                    descricao: item.produto,
+                                    categoria: item.categoria || 'GERAL'
+                                };
+                            }
+
+                            const clienteNome = (item.cliente || 'Geral').trim();
+                            const qtdEstoque = Number(item.estoque) || 0;
+
+                            // Verifica se é o CD
+                            if (clienteNome.toUpperCase().startsWith('CD')) {
+                                estoqueCdTotal += qtdEstoque;
+                            } else {
+                                clientStockMap[clienteNome] = (clientStockMap[clienteNome] || 0) + qtdEstoque;
+                            }
+                        }
+                    }
+                }
+
+                // 2. PROCESSAR DADOS DE VENDAS (Para extrair o preço praticado)
+                const registroVendas = cloudData.find(d => d.id === 'vendas');
+                if (registroVendas && registroVendas.data && Array.isArray(registroVendas.data)) {
+                    const vendasArr = registroVendas.data;
+                    const vendaItem = vendasArr.find(v => 
+                        (v.ean && String(v.ean).trim() === termo) || 
+                        (v.produto && String(v.produto).trim().toUpperCase().includes(termoUpper))
+                    );
+
+                    if (vendaItem) {
+                        precoVenda = vendaItem.vlrUnit || 0;
+                        if (!produtoInfo) {
+                            produtoInfo = {
+                                codigo: vendaItem.ean || 'S/EAN',
+                                descricao: vendaItem.produto,
+                                categoria: vendaItem.categoria || 'GERAL'
+                            };
+                        }
+                    }
+                }
+
+                if (produtoInfo) {
+                    exibirResultadoDetalhado(produtoInfo, clientStockMap, estoqueCdTotal, precoVenda);
                     hideAlert();
                 } else {
                     resultCard.classList.add('hidden');
-                    showAlert(`Produto não encontrado na base para o código/termo: ${termo}`, 'error');
+                    showAlert(`Produto não encontrado na base: "${termo}"`, 'error');
                 }
+
             } catch (err) {
-                console.error("Erro na busca:", err);
-                showAlert(`Erro ao consultar o banco: ${err.message || 'Verifique o console'}`, 'error');
+                console.error("Erro na consulta:", err);
+                showAlert(`Erro ao consultar o banco: ${err.message}`, 'error');
             }
         }
 
-        // Renderiza Dados na Tela
-        function exibirProduto(item) {
-            document.getElementById('res-code').innerText = item[barcodeCol] || item.codigo || 'N/A';
-            document.getElementById('res-desc').innerText = item.descricao || item.nome || 'Produto Sem Descrição';
+        function exibirResultadoDetalhado(info, clientStockMap, estoqueCd, preco) {
+            document.getElementById('res-code').innerText = info.codigo || 'S/EAN';
+            document.getElementById('res-desc').innerText = info.descricao || 'Sem Descrição';
+            document.getElementById('res-cat').innerText = info.categoria || 'GERAL';
             
-            const preco = parseFloat(item.preco || item.preco_venda || 0);
-            document.getElementById('res-price').innerText = preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            
-            document.getElementById('res-stock').innerText = item.estoque ?? item.quantidade ?? 0;
-            document.getElementById('res-client').innerText = item.cliente || item.fornecedor || 'Geral';
+            document.getElementById('res-price').innerText = parseFloat(preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            document.getElementById('res-stock-cd').innerText = estoqueCd;
+
+            // Renderizar Tabela de Clientes
+            const tbody = document.getElementById('client-stock-table-body');
+            tbody.innerHTML = '';
+
+            let estoqueLojasTotal = 0;
+            const clientesList = Object.keys(clientStockMap).sort();
+
+            if (clientesList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" class="p-3 text-center text-slate-500">Nenhum estoque em lojas encontrado.</td></tr>`;
+            } else {
+                clientesList.forEach(cliente => {
+                    const qtd = clientStockMap[cliente];
+                    estoqueLojasTotal += qtd;
+
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-800/50 transition-colors";
+                    tr.innerHTML = `
+                        <td class="p-2.5 font-semibold text-slate-100 flex items-center gap-1.5">
+                            <i class="fa-solid fa-store text-amber-400 text-[10px]"></i> ${cliente}
+                        </td>
+                        <td class="p-2.5 text-center font-bold text-emerald-400">${qtd}</td>
+                        <td class="p-2.5 text-center font-bold text-blue-400">${estoqueCd}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            // Calcular Estoque Total Consolidado
+            document.getElementById('res-stock-total').innerText = estoqueLojasTotal + estoqueCd;
 
             resultCard.classList.remove('hidden');
         }
 
-        // Busca Manual via Formulário
         formManual.addEventListener('submit', (e) => {
             e.preventDefault();
             const termo = inputSearch.value.trim();
-            if (termo) buscarProduto(termo);
+            if (termo) buscarProdutoBaseNexxa(termo);
         });
 
-        // Alertas na Interface
         function showAlert(msg, type) {
             statusAlert.innerText = msg;
-            statusAlert.className = "p-3 rounded-lg text-sm text-center font-medium border ";
-            
-            if (type === 'error') {
-                statusAlert.classList.add('bg-red-900/40', 'border-red-700', 'text-red-300');
-            } else if (type === 'warning') {
-                statusAlert.classList.add('bg-amber-900/40', 'border-amber-700', 'text-amber-300');
-            } else if (type === 'success') {
-                statusAlert.classList.add('bg-emerald-900/40', 'border-emerald-700', 'text-emerald-300');
-            } else {
-                statusAlert.classList.add('bg-blue-900/40', 'border-blue-700', 'text-blue-300');
-            }
+            statusAlert.className = "p-3 rounded-xl text-xs text-center font-medium border ";
+            if (type === 'error') statusAlert.classList.add('bg-rose-950/60', 'border-rose-800', 'text-rose-300');
+            else if (type === 'warning') statusAlert.classList.add('bg-amber-950/60', 'border-amber-800', 'text-amber-300');
+            else if (type === 'success') statusAlert.classList.add('bg-emerald-950/60', 'border-emerald-800', 'text-emerald-300');
+            else statusAlert.classList.add('bg-slate-900', 'border-slate-800', 'text-amber-400');
             statusAlert.classList.remove('hidden');
         }
 
@@ -309,11 +384,9 @@
             statusAlert.classList.add('hidden');
         }
 
-        // Gestão do Modal de Configuração
         btnConfig.addEventListener('click', () => {
             document.getElementById('cfg-url').value = supabaseUrl;
             document.getElementById('cfg-key').value = supabaseKey;
-            document.getElementById('cfg-col').value = barcodeCol;
             modalConfig.classList.remove('hidden');
         });
 
@@ -322,17 +395,14 @@
         btnSaveCfg.addEventListener('click', () => {
             supabaseUrl = document.getElementById('cfg-url').value.trim();
             supabaseKey = document.getElementById('cfg-key').value.trim();
-            barcodeCol  = document.getElementById('cfg-col').value.trim() || 'codigo_barras';
 
             localStorage.setItem('nexxa_sb_url', supabaseUrl);
             localStorage.setItem('nexxa_sb_key', supabaseKey);
-            localStorage.setItem('nexxa_sb_col', barcodeCol);
 
             modalConfig.classList.add('hidden');
             initSupabase();
         });
 
-        // Inicialização
         window.addEventListener('DOMContentLoaded', () => {
             initSupabase();
         });
