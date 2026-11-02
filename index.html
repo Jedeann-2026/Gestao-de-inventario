@@ -32,7 +32,7 @@
     </div>
     <script>
         const SUPABASE_URL = "https://mjkqkyuolsqhtxwzivof.supabase.co";
-        const SUPABASE_KEY = "sb_publishable_taL59MpBnTvHmpfD8eMSnw_f2QuR6w-"; // Chave configurada
+        const SUPABASE_KEY = "sb_publishable_taL59MpBnTvHmpfD8eMSnw_f2QuR6w-";
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let html5QrCode = null, isScanning = false;
@@ -136,25 +136,35 @@
 
                 lista.forEach(info => {
                     let clientMap = {}, cdTotal = 0;
+
+                    // 1. Preenche o estoque por loja e CD
                     if (regEstoque && regEstoque.data) {
                         for (let k in regEstoque.data) {
                             let item = regEstoque.data[k];
                             if ((item.ean && String(item.ean).trim() === info.codigo) || (item.produto && item.produto.toUpperCase() === info.descricao.toUpperCase())) {
                                 let cliente = (item.cliente || 'Geral').trim();
                                 let qtd = Number(item.estoque) || 0;
-                                if (cliente.toUpperCase().startsWith('CD')) cdTotal += qtd;
-                                else clientMap[cliente] = (clientMap[cliente] || 0) + qtd;
+                                if (cliente.toUpperCase().startsWith('CD')) {
+                                    cdTotal += qtd;
+                                } else {
+                                    if (!clientMap[cliente]) clientMap[cliente] = { estoque: 0, preco: 0 };
+                                    clientMap[cliente].estoque += qtd;
+                                }
                             }
                         }
                     }
 
+                    // 2. Associa o preço praticado por cada cliente vindo de vendas
                     if (regVendas && regVendas.data) {
                         regVendas.data.forEach(v => {
                             if ((v.ean && String(v.ean).trim() === info.codigo) || (v.produto && v.produto.toUpperCase() === info.descricao.toUpperCase())) {
                                 let cliente = (v.cliente || 'Geral').trim();
                                 let preco = parseFloat(v.vlrUnit || 0);
-                                if (!clientMap[cliente]) clientMap[cliente] = { estoque: 0, preco };
-                                else clientMap[cliente].preco = preco;
+                                if (!clientMap[cliente]) {
+                                    clientMap[cliente] = { estoque: 0, preco: preco };
+                                } else {
+                                    clientMap[cliente].preco = preco;
+                                }
                             }
                         });
                     }
@@ -162,8 +172,8 @@
                     let lojasHtml = "";
                     Object.keys(clientMap).sort().forEach(cli => {
                         let dados = clientMap[cli];
-                        let est = typeof dados === 'object' ? dados.estoque : dados;
-                        let prc = typeof dados === 'object' && dados.preco ? dados.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00';
+                        let est = dados.estoque || 0;
+                        let prc = dados.preco > 0 ? dados.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00';
                         lojasHtml += `<tr class="border-b border-slate-800"><td class="p-2">${cli}</td><td class="p-2 text-right text-emerald-400">${prc}</td><td class="p-2 text-center">${est}</td><td class="p-2 text-center text-blue-400">${cdTotal}</td></tr>`;
                     });
 
