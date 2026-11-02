@@ -104,9 +104,13 @@
                         let item = regEstoque.data[k];
                         let ean = item.ean ? String(item.ean).trim() : '';
                         let nome = item.produto ? String(item.produto).trim().toUpperCase() : '';
+
+                        // FILTRO: Ignora se não tiver EAN válido
+                        if (!ean || ean === '' || ean === '0') continue;
+
                         if (ean.includes(termo) || nome.includes(termoUpper)) {
-                            let key = ean || nome;
-                            if (!produtosMap[key]) produtosMap[key] = { codigo: ean || 'S/EAN', descricao: item.produto, categoria: item.categoria || 'GERAL' };
+                            let key = ean;
+                            if (!produtosMap[key]) produtosMap[key] = { codigo: ean, descricao: item.produto, categoria: item.categoria || 'GERAL' };
                         }
                     }
                 }
@@ -116,16 +120,20 @@
                     regVendas.data.forEach(v => {
                         let ean = v.ean ? String(v.ean).trim() : '';
                         let nome = v.produto ? String(v.produto).trim().toUpperCase() : '';
+
+                        // FILTRO: Ignora se não tiver EAN válido
+                        if (!ean || ean === '' || ean === '0') return;
+
                         if (ean.includes(termo) || nome.includes(termoUpper)) {
-                            let key = ean || nome;
-                            if (!produtosMap[key]) produtosMap[key] = { codigo: ean || 'S/EAN', descricao: v.produto, categoria: v.categoria || 'GERAL' };
+                            let key = ean;
+                            if (!produtosMap[key]) produtosMap[key] = { codigo: ean, descricao: v.produto, categoria: v.categoria || 'GERAL' };
                         }
                     });
                 }
 
                 const lista = Object.values(produtosMap);
                 if (lista.length === 0) {
-                    statusAlert.innerText = "Nenhum produto encontrado.";
+                    statusAlert.innerText = "Nenhum produto com EAN encontrado.";
                     statusAlert.className = "p-2 rounded-xl text-xs text-center bg-rose-950 text-rose-300 border border-rose-800";
                     resultsContainer.innerHTML = "";
                     return;
@@ -141,7 +149,8 @@
                     if (regEstoque && regEstoque.data) {
                         for (let k in regEstoque.data) {
                             let item = regEstoque.data[k];
-                            if ((item.ean && String(item.ean).trim() === info.codigo) || (item.produto && item.produto.toUpperCase() === info.descricao.toUpperCase())) {
+                            let itemEan = item.ean ? String(item.ean).trim() : '';
+                            if (itemEan === info.codigo) {
                                 let cliente = (item.cliente || 'Geral').trim();
                                 let qtd = Number(item.estoque) || 0;
                                 if (cliente.toUpperCase().startsWith('CD')) {
@@ -157,7 +166,8 @@
                     // 2. Associa o preço praticado por cada cliente vindo de vendas
                     if (regVendas && regVendas.data) {
                         regVendas.data.forEach(v => {
-                            if ((v.ean && String(v.ean).trim() === info.codigo) || (v.produto && v.produto.toUpperCase() === info.descricao.toUpperCase())) {
+                            let vEan = v.ean ? String(v.ean).trim() : '';
+                            if (vEan === info.codigo) {
                                 let cliente = (v.cliente || 'Geral').trim();
                                 let preco = parseFloat(v.vlrUnit || 0);
                                 if (!clientMap[cliente]) {
