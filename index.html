@@ -3,420 +3,190 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nexxa Scanner - Leitura Detalhada de Estoque</title>
-    <!-- Tailwind CSS -->
+    <title>Nexxa Scanner - Mobile</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome para ícones -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- SDK Oficial do Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Leitor de Código de Barras via Câmera -->
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        #reader video {
-            object-fit: cover !important;
-            border-radius: 0.75rem;
-        }
+        #reader video { object-fit: cover !important; border-radius: 0.75rem; }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
-
-    <!-- Header -->
-    <header class="bg-slate-900 border-b border-slate-800 p-4 sticky top-0 z-50 shadow-md">
-        <div class="max-w-md mx-auto flex justify-between items-center">
-            <div class="flex items-center space-x-2">
-                <div class="bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
-                    <i class="fa-solid fa-barcode text-amber-400 text-xl"></i>
-                </div>
-                <div>
-                    <h1 class="text-lg font-bold tracking-tight text-amber-400">NEXXA Scanner</h1>
-                    <p class="text-[10px] text-slate-400">Estoque e Preços por Cliente & CD</p>
-                </div>
-            </div>
-            <button id="btn-config" class="text-slate-400 hover:text-white p-2 rounded-lg transition" title="Configurações Supabase">
-                <i class="fa-solid fa-gear text-lg"></i>
-            </button>
-        </div>
-    </header>
-
-    <main class="flex-1 max-w-md w-full mx-auto p-4 space-y-4">
-
-        <!-- Card da Câmera -->
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans p-4">
+    <div class="max-w-md w-full mx-auto space-y-4">
         <div class="bg-slate-900 rounded-2xl p-4 border border-slate-800 shadow-xl">
-            <div id="reader-container" class="relative">
-                <div id="reader" class="w-full bg-black rounded-xl overflow-hidden min-h-[220px] flex items-center justify-center">
-                    <div id="camera-placeholder" class="text-center p-6 text-slate-500">
-                        <i class="fa-solid fa-camera text-4xl mb-2 text-slate-600"></i>
-                        <p class="text-xs text-slate-400">Clique abaixo para ativar a câmera</p>
-                    </div>
-                </div>
+            <h1 class="text-base font-bold text-amber-400 mb-3 text-center"><i class="fa-solid fa-barcode mr-2"></i>NEXXA Scanner</h1>
+            <div id="reader" class="w-full bg-black rounded-xl overflow-hidden min-h-[200px] flex items-center justify-center mb-3">
+                <span class="text-xs text-slate-500">Câmera desativada</span>
             </div>
-
-            <!-- Botão de Ação -->
-            <div class="mt-4">
-                <button id="btn-scan" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition">
-                    <i class="fa-solid fa-camera"></i>
-                    <span id="scan-btn-text">Escanear Código de Barras</span>
-                </button>
-            </div>
+            <button id="btn-scan" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-3 rounded-xl text-xs transition">Escanear Código</button>
         </div>
-
-        <!-- Busca Manual -->
         <div class="bg-slate-900 rounded-2xl p-3 border border-slate-800">
             <form id="form-manual" class="flex gap-2">
-                <input type="text" id="input-search" placeholder="Digitar EAN ou nome do produto..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-amber-400">
-                <button type="submit" class="bg-slate-800 hover:bg-slate-700 text-amber-400 px-4 py-2 rounded-xl font-medium text-xs transition border border-slate-700">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                </button>
+                <input type="text" id="input-search" placeholder="Digite o EAN ou nome (contém)..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400">
+                <button type="submit" class="bg-slate-800 text-amber-400 px-3 py-2 rounded-xl text-xs border border-slate-700"><i class="fa-solid fa-magnifying-glass"></i></button>
             </form>
         </div>
-
-        <!-- Feedback / Status -->
-        <div id="status-alert" class="hidden p-3 rounded-xl text-xs text-center font-medium"></div>
-
-        <!-- Card de Resultado do Produto -->
-        <div id="result-card" class="hidden bg-slate-900 rounded-2xl p-4 border border-slate-800 shadow-xl space-y-4">
-            
-            <!-- Cabeçalho do Produto -->
-            <div class="border-b border-slate-800 pb-3 flex justify-between items-start gap-2">
-                <div>
-                    <span id="res-code" class="text-[10px] font-mono bg-slate-800 text-amber-400 px-2 py-1 rounded border border-slate-700">--</span>
-                    <h2 id="res-desc" class="text-base font-bold text-white mt-2 leading-tight">--</h2>
-                    <span id="res-cat" class="inline-block mt-1 text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700">GERAL</span>
-                </div>
-            </div>
-
-            <!-- Resumo dos Totais de Estoque -->
-            <div class="grid grid-cols-2 gap-2 text-center">
-                <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
-                    <span class="text-[10px] text-slate-400 block mb-0.5">Estoque CD</span>
-                    <span id="res-stock-cd" class="text-base font-bold text-blue-400">0</span>
-                </div>
-                <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
-                    <span class="text-[10px] text-slate-400 block mb-0.5">Estoque Total</span>
-                    <span id="res-stock-total" class="text-base font-bold text-white">0</span>
-                </div>
-            </div>
-
-            <!-- Tabela Detalhada: Preço de Venda + Estoque por Cliente / Loja -->
-            <div class="space-y-2">
-                <h3 class="text-xs font-bold text-amber-400 flex items-center gap-1.5">
-                    <i class="fa-solid fa-store"></i> Detalhamento por Cliente / Loja
-                </h3>
-                <div class="overflow-x-auto rounded-xl border border-slate-800 max-h-64 overflow-y-auto">
-                    <table class="w-full text-left border-collapse text-xs whitespace-nowrap">
-                        <thead>
-                            <tr class="bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 sticky top-0">
-                                <th class="p-2.5 font-semibold">Cliente / Loja</th>
-                                <th class="p-2.5 font-semibold text-right text-emerald-400">Preço Venda</th>
-                                <th class="p-2.5 font-semibold text-center text-emerald-300">Est. Loja</th>
-                                <th class="p-2.5 font-semibold text-center text-blue-400">Est. CD</th>
-                            </tr>
-                        </thead>
-                        <tbody id="client-stock-table-body" class="divide-y divide-slate-800 text-slate-200">
-                            <!-- Preenchido via JS -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-        </div>
-
-    </main>
-
-    <!-- Modal de Configuração -->
-    <div id="modal-config" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
-            <h3 class="text-base font-bold text-white flex items-center gap-2">
-                <i class="fa-solid fa-database text-amber-400"></i> Configuração Supabase
-            </h3>
-            
-            <div class="space-y-3 text-xs">
-                <div>
-                    <label class="font-semibold text-slate-300 block mb-1">URL Supabase</label>
-                    <input type="text" id="cfg-url" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-amber-400">
-                </div>
-                <div>
-                    <label class="font-semibold text-slate-300 block mb-1">Anon Key (Chave Pública)</label>
-                    <input type="password" id="cfg-key" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-amber-400">
-                </div>
-            </div>
-
-            <div class="flex gap-2 pt-2">
-                <button id="btn-save-cfg" class="flex-1 bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold py-2 rounded-xl text-xs transition">Salvar</button>
-                <button id="btn-close-cfg" class="bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 px-4 rounded-xl text-xs transition">Cancelar</button>
-            </div>
-        </div>
+        <div id="status-alert" class="hidden p-2 rounded-xl text-xs text-center"></div>
+        <div id="results-container" class="space-y-4"></div>
     </div>
-
     <script>
-        const DEFAULT_URL = "https://mjkqkyuolsqhtxwzivof.supabase.co";
-        const DEFAULT_KEY = "SUA_ANON_KEY_AQUI";
+        // CREDENCIAIS FIXAS DO SUPABASE
+        const SUPABASE_URL = "https://mjkqkyuolsqhtxwzivof.supabase.co";[span_1](start_span)[span_1](end_span)
+        const SUPABASE_KEY = "sb_publishable_taL59MpBnTvHmpfD8eMSnw_f2QuR6w-";
+        
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let supabaseUrl = localStorage.getItem('nexxa_sb_url') || DEFAULT_URL;
-        let supabaseKey = localStorage.getItem('nexxa_sb_key') || DEFAULT_KEY;
-        let supabaseClient = null;
-
-        let html5QrCode = null;
-        let isScanning = false;
-
+        let html5QrCode = null, isScanning = false;
         const btnScan = document.getElementById('btn-scan');
-        const scanBtnText = document.getElementById('scan-btn-text');
-        const btnConfig = document.getElementById('btn-config');
-        const modalConfig = document.getElementById('modal-config');
-        const btnSaveCfg = document.getElementById('btn-save-cfg');
-        const btnCloseCfg = document.getElementById('btn-close-cfg');
         const formManual = document.getElementById('form-manual');
         const inputSearch = document.getElementById('input-search');
-        const resultCard = document.getElementById('result-card');
+        const resultsContainer = document.getElementById('results-container');
         const statusAlert = document.getElementById('status-alert');
 
-        function initSupabase() {
-            if (supabaseUrl && supabaseKey && supabaseKey !== 'SUA_ANON_KEY_AQUI') {
-                try {
-                    supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
-                    showAlert('Base Nexxa conectada com sucesso!', 'success');
-                    setTimeout(hideAlert, 2000);
-                } catch (e) {
-                    showAlert('Erro ao conectar ao Supabase.', 'error');
-                }
-            } else {
-                showAlert('Configure a Anon Key nas configurações (⚙).', 'warning');
-            }
-        }
-
         btnScan.addEventListener('click', () => {
-            if (isScanning) stopScanner();
-            else startScanner();
-        });
-
-        function startScanner() {
-            document.getElementById('camera-placeholder').classList.add('hidden');
-            html5QrCode = new Html5Qrcode("reader");
-
-            const config = { fps: 10, qrbox: { width: 250, height: 150 }, aspectRatio: 1.0 };
-
-            html5QrCode.start(
-                { facingMode: "environment" },
-                config,
-                async (decodedText) => {
-                    stopScanner();
-                    buscarProdutoBaseNexxa(decodedText.trim());
-                },
-                (errorMessage) => {}
-            ).then(() => {
-                isScanning = true;
-                scanBtnText.innerText = "Parar Câmera";
-                btnScan.classList.replace('bg-amber-500', 'bg-rose-600');
-                btnScan.classList.replace('hover:bg-amber-600', 'hover:bg-rose-700');
-                btnScan.classList.replace('text-slate-950', 'text-white');
-            }).catch(err => {
-                showAlert("Erro ao acessar a câmera: " + err, "error");
-                document.getElementById('camera-placeholder').classList.remove('hidden');
-            });
-        }
-
-        function stopScanner() {
-            if (html5QrCode && isScanning) {
-                html5QrCode.stop().then(() => {
-                    html5QrCode.clear();
-                    isScanning = false;
-                    scanBtnText.innerText = "Escanear Código de Barras";
+            if (isScanning) {
+                html5QrCode.stop().then(() => { 
+                    isScanning = false; 
+                    btnScan.innerText = "Escanear Código"; 
                     btnScan.classList.replace('bg-rose-600', 'bg-amber-500');
-                    btnScan.classList.replace('hover:bg-rose-700', 'hover:bg-amber-600');
                     btnScan.classList.replace('text-white', 'text-slate-950');
                 });
-            }
-        }
-
-        async function buscarProdutoBaseNexxa(termo) {
-            if (!termo) return;
-            if (!supabaseClient) {
-                showAlert('Configure as credenciais do Supabase.', 'warning');
-                return;
-            }
-
-            showAlert(`Buscando "${termo}"...`, 'info');
-
-            try {
-                const { data: cloudData, error } = await supabaseClient.from('nexxa_store').select('*');
-                if (error) throw error;
-
-                if (!cloudData || cloudData.length === 0) {
-                    showAlert('Nenhum registro encontrado na base nexxa_store.', 'error');
-                    return;
-                }
-
-                const termoUpper = termo.toUpperCase();
-                let produtoInfo = null;
-                let clientDetailsMap = {}; // Guarda { cliente: { estoque: 0, preco: 0 } }
-                let estoqueCdTotal = 0;
-
-                // 1. EXTRAIR ESTOQUE POR CLIENTE / CD
-                const registroEstoque = cloudData.find(d => d.id === 'estoque' || d.id === 'ESTOQUE');
-                if (registroEstoque && registroEstoque.data) {
-                    const estoqueObj = registroEstoque.data;
-
-                    for (let key in estoqueObj) {
-                        const item = estoqueObj[key];
-                        const cleanEan = item.ean ? String(item.ean).trim() : '';
-                        const cleanName = item.produto ? String(item.produto).trim().toUpperCase() : '';
-
-                        if ((cleanEan && cleanEan === termo) || (cleanName && cleanName.includes(termoUpper))) {
-                            if (!produtoInfo) {
-                                produtoInfo = {
-                                    codigo: item.ean || 'S/EAN',
-                                    descricao: item.produto,
-                                    categoria: item.categoria || 'GERAL'
-                                };
-                            }
-
-                            const clienteNome = (item.cliente || 'Geral').trim();
-                            const qtdEstoque = Number(item.estoque) || 0;
-
-                            if (clienteNome.toUpperCase().startsWith('CD')) {
-                                estoqueCdTotal += qtdEstoque;
-                            } else {
-                                if (!clientDetailsMap[clienteNome]) {
-                                    clientDetailsMap[clienteNome] = { estoque: 0, preco: 0 };
-                                }
-                                clientDetailsMap[clienteNome].estoque += qtdEstoque;
-                            }
-                        }
-                    }
-                }
-
-                // 2. EXTRAIR PREÇO DE VENDA ESPECÍFICO POR CLIENTE (DA TABELA DE VENDAS)
-                const registroVendas = cloudData.find(d => d.id === 'vendas');
-                if (registroVendas && registroVendas.data && Array.isArray(registroVendas.data)) {
-                    const vendasArr = registroVendas.data;
-                    
-                    vendasArr.forEach(v => {
-                        const cleanEan = v.ean ? String(v.ean).trim() : '';
-                        const cleanName = v.produto ? String(v.produto).trim().toUpperCase() : '';
-
-                        if ((cleanEan && cleanEan === termo) || (cleanName && cleanName.includes(termoUpper))) {
-                            if (!produtoInfo) {
-                                produtoInfo = {
-                                    codigo: v.ean || 'S/EAN',
-                                    descricao: v.produto,
-                                    categoria: v.categoria || 'GERAL'
-                                };
-                            }
-
-                            const clienteNome = (v.cliente || 'Geral').trim();
-                            const precoPraticado = parseFloat(v.vlrUnit || 0);
-
-                            if (!clientDetailsMap[clienteNome]) {
-                                clientDetailsMap[clienteNome] = { estoque: 0, preco: precoPraticado };
-                            } else {
-                                // Atualiza o preço praticado naquele cliente
-                                clientDetailsMap[clienteNome].preco = precoPraticado;
-                            }
-                        }
-                    });
-                }
-
-                if (produtoInfo) {
-                    exibirResultadoDetalhado(produtoInfo, clientDetailsMap, estoqueCdTotal);
-                    hideAlert();
-                } else {
-                    resultCard.classList.add('hidden');
-                    showAlert(`Produto não encontrado na base: "${termo}"`, 'error');
-                }
-
-            } catch (err) {
-                console.error("Erro na consulta:", err);
-                showAlert(`Erro ao consultar o banco: ${err.message}`, 'error');
-            }
-        }
-
-        function exibirResultadoDetalhado(info, clientDetailsMap, estoqueCd) {
-            document.getElementById('res-code').innerText = info.codigo || 'S/EAN';
-            document.getElementById('res-desc').innerText = info.descricao || 'Sem Descrição';
-            document.getElementById('res-cat').innerText = info.categoria || 'GERAL';
-            document.getElementById('res-stock-cd').innerText = estoqueCd;
-
-            // Renderizar Tabela de Clientes com Preço e Estoque
-            const tbody = document.getElementById('client-stock-table-body');
-            tbody.innerHTML = '';
-
-            let estoqueLojasTotal = 0;
-            const clientesList = Object.keys(clientDetailsMap).sort();
-
-            if (clientesList.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" class="p-3 text-center text-slate-500">Nenhum dado por loja encontrado.</td></tr>`;
             } else {
-                clientesList.forEach(cliente => {
-                    const dados = clientDetailsMap[cliente];
-                    estoqueLojasTotal += dados.estoque;
+                html5QrCode = new Html5Qrcode("reader");
+                
+                const config = { 
+                    fps: 20, 
+                    qrbox: { width: 280, height: 120 },
+                    aspectRatio: 1.777778
+                };
 
-                    const precoFmt = dados.preco > 0 
-                        ? dados.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-                        : 'R$ 0,00';
-
-                    const tr = document.createElement('tr');
-                    tr.className = "hover:bg-slate-800/50 transition-colors";
-                    tr.innerHTML = `
-                        <td class="p-2.5 font-semibold text-slate-100 flex items-center gap-1.5">
-                            <i class="fa-solid fa-store text-amber-400 text-[10px]"></i> ${cliente}
-                        </td>
-                        <td class="p-2.5 text-right font-bold text-emerald-400">${precoFmt}</td>
-                        <td class="p-2.5 text-center font-bold text-emerald-300">${dados.estoque}</td>
-                        <td class="p-2.5 text-center font-bold text-blue-400">${estoqueCd}</td>
-                    `;
-                    tbody.appendChild(tr);
+                html5QrCode.start({ facingMode: "environment" }, config, (text) => {
+                    html5QrCode.stop().then(() => {
+                        isScanning = false; 
+                        btnScan.innerText = "Escanear Código";
+                        btnScan.classList.replace('bg-rose-600', 'bg-amber-500');
+                        btnScan.classList.replace('text-white', 'text-slate-950');
+                        buscar(text.trim());
+                    });
+                }, (errorMessage) => {
+                    // Ignora erros contínuos de frame
+                }).then(() => { 
+                    isScanning = true; 
+                    btnScan.innerText = "Parar Câmera"; 
+                    btnScan.classList.replace('bg-amber-500', 'bg-rose-600');
+                    btnScan.classList.replace('text-slate-950', 'text-white');
+                }).catch(err => {
+                    alert("Erro ao iniciar câmera: " + err);
                 });
             }
-
-            // Calcular Estoque Total Consolidado
-            document.getElementById('res-stock-total').innerText = estoqueLojasTotal + estoqueCd;
-
-            resultCard.classList.remove('hidden');
-        }
+        });
 
         formManual.addEventListener('submit', (e) => {
             e.preventDefault();
             const termo = inputSearch.value.trim();
-            if (termo) buscarProdutoBaseNexxa(termo);
+            if (termo) buscar(termo);
         });
 
-        function showAlert(msg, type) {
-            statusAlert.innerText = msg;
-            statusAlert.className = "p-3 rounded-xl text-xs text-center font-medium border ";
-            if (type === 'error') statusAlert.classList.add('bg-rose-950/60', 'border-rose-800', 'text-rose-300');
-            else if (type === 'warning') statusAlert.classList.add('bg-amber-950/60', 'border-amber-800', 'text-amber-300');
-            else if (type === 'success') statusAlert.classList.add('bg-emerald-950/60', 'border-emerald-800', 'text-emerald-300');
-            else statusAlert.classList.add('bg-slate-900', 'border-slate-800', 'text-amber-400');
+        async function buscar(termo) {
+            statusAlert.innerText = Buscando "${termo}"...;
+            statusAlert.className = "p-2 rounded-xl text-xs text-center bg-slate-900 text-amber-400 border border-slate-800";
             statusAlert.classList.remove('hidden');
+
+            try {
+                const { data: cloudData, error } = await supabaseClient.from('nexxa_store').select('*');[span_2](start_span)[span_2](end_span)
+                if (error) throw error;
+
+                let produtosMap = {};
+                const termoUpper = termo.toUpperCase();
+
+                const regEstoque = cloudData.find(d => d.id === 'estoque' || d.id === 'ESTOQUE');[span_3](start_span)[span_3](end_span)
+                if (regEstoque && regEstoque.data) {
+                    for (let k in regEstoque.data) {
+                        let item = regEstoque.data[k];
+                        let ean = item.ean ? String(item.ean).trim() : '';
+                        let nome = item.produto ? String(item.produto).trim().toUpperCase() : '';
+                        if (ean.includes(termo) || nome.includes(termoUpper)) {
+                            let key = ean || nome;
+                            if (!produtosMap[key]) produtosMap[key] = { codigo: ean || 'S/EAN', descricao: item.produto, categoria: item.categoria || 'GERAL' };
+                        }
+                    }
+                }
+
+                const regVendas = cloudData.find(d => d.id === 'vendas');[span_4](start_span)[span_4](end_span)
+                if (regVendas && regVendas.data) {
+                    regVendas.data.forEach(v => {
+                        let ean = v.ean ? String(v.ean).trim() : '';
+                        let nome = v.produto ? String(v.produto).trim().toUpperCase() : '';
+                        if (ean.includes(termo) || nome.includes(termoUpper)) {
+                            let key = ean || nome;
+                            if (!produtosMap[key]) produtosMap[key] = { codigo: ean || 'S/EAN', descricao: v.produto, categoria: v.categoria || 'GERAL' };
+                        }
+                    });
+                }
+
+                const lista = Object.values(produtosMap);
+                if (lista.length === 0) {
+                    statusAlert.innerText = "Nenhum produto encontrado.";
+                    statusAlert.className = "p-2 rounded-xl text-xs text-center bg-rose-950 text-rose-300 border border-rose-800";
+                    resultsContainer.innerHTML = "";
+                    return;
+                }
+
+                statusAlert.classList.add('hidden');
+                resultsContainer.innerHTML = "";
+
+                lista.forEach(info => {
+                    let clientMap = {}, cdTotal = 0;
+                    if (regEstoque && regEstoque.data) {
+                        for (let k in regEstoque.data) {
+                            let item = regEstoque.data[k];
+                            if ((item.ean && String(item.ean).trim() === info.codigo) || (item.produto && item.produto.toUpperCase() === info.descricao.toUpperCase())) {
+                                let cliente = (item.cliente || 'Geral').trim();
+                                let qtd = Number(item.estoque) || 0;
+                                if (cliente.toUpperCase().startsWith('CD')) cdTotal += qtd;
+                                else clientMap[cliente] = (clientMap[cliente] || 0) + qtd;
+                            }
+                        }
+                    }
+
+                    if (regVendas && regVendas.data) {
+                        regVendas.data.forEach(v => {
+                            if ((v.ean && String(v.ean).trim() === info.codigo) || (v.produto && v.produto.toUpperCase() === info.descricao.toUpperCase())) {
+                                let cliente = (v.cliente || 'Geral').trim();
+                                let preco = parseFloat(v.vlrUnit || 0);
+                                if (!clientMap[cliente]) clientMap[cliente] = { estoque: 0, preco };
+                                else clientMap[cliente].preco = preco;
+                            }
+                        });
+                    }
+
+                    let lojasHtml = "";
+                    Object.keys(clientMap).sort().forEach(cli => {
+                        let dados = clientMap[cli];
+                        let est = typeof dados === 'object' ? dados.estoque : dados;
+                        let prc = typeof dados === 'object' && dados.preco ? dados.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00';
+                        lojasHtml += <tr class="border-b border-slate-800"><td class="p-2">${cli}</td><td class="p-2 text-right text-emerald-400">${prc}</td><td class="p-2 text-center">${est}</td><td class="p-2 text-center text-blue-400">${cdTotal}</td></tr>;
+                    });
+
+                    let card = document.createElement('div');
+                    card.className = "bg-slate-900 rounded-2xl p-4 border border-slate-800 space-y-3 shadow-xl";
+                    card.innerHTML = `
+                        <h2 class="font-bold text-white text-sm">${info.descricao}</h2>
+                        <div class="text-[10px] text-amber-400">EAN: ${info.codigo} | Cat: ${info.categoria}</div>
+                        <table class="w-full text-xs text-left">
+                            <tr class="text-slate-400 border-b border-slate-800"><th class="p-2">Loja</th><th class="p-2 text-right">Preço</th><th class="p-2 text-center">Loja</th><th class="p-2 text-center">CD</th></tr>
+                            ${lojasHtml || '<tr><td colspan="4" class="p-2 text-center text-slate-500">Sem dados</td></tr>'}
+                        </table>
+                    `;
+                    resultsContainer.appendChild(card);
+                });
+
+            } catch (err) {
+                statusAlert.innerText = "Erro ao consultar: " + err.message;
+                statusAlert.className = "p-2 rounded-xl text-xs text-center bg-rose-950 text-rose-300 border border-rose-800";
+            }
         }
-
-        function hideAlert() {
-            statusAlert.classList.add('hidden');
-        }
-
-        btnConfig.addEventListener('click', () => {
-            document.getElementById('cfg-url').value = supabaseUrl;
-            document.getElementById('cfg-key').value = supabaseKey;
-            modalConfig.classList.remove('hidden');
-        });
-
-        btnCloseCfg.addEventListener('click', () => modalConfig.classList.add('hidden'));
-
-        btnSaveCfg.addEventListener('click', () => {
-            supabaseUrl = document.getElementById('cfg-url').value.trim();
-            supabaseKey = document.getElementById('cfg-key').value.trim();
-
-            localStorage.setItem('nexxa_sb_url', supabaseUrl);
-            localStorage.setItem('nexxa_sb_key', supabaseKey);
-
-            modalConfig.classList.add('hidden');
-            initSupabase();
-        });
-
-        window.addEventListener('DOMContentLoaded', () => {
-            initSupabase();
-        });
     </script>
 </body>
 </html>
