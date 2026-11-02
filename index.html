@@ -64,7 +64,7 @@
                         isScanning = false; 
                         btnScan.innerText = "Escanear Código";
                         btnScan.classList.replace('bg-rose-600', 'bg-amber-500');
-                        btnScan.classList.replace('text-white', 'text-slate-950');
+                        btnScan.classList.replace('text-slate-950', 'text-white');
                         buscar(text.trim());
                     });
                 }, (errorMessage) => {
@@ -143,9 +143,9 @@
                 resultsContainer.innerHTML = "";
 
                 lista.forEach(info => {
-                    let clientMap = {}, cdTotal = 0;
+                    let clientMap = {}, cdTotal = 0, lojaTotalSum = 0;
 
-                    // 1. Preenche o estoque por loja e CD
+                    // 1. Preenche o estoque por loja e CD (mantendo valores negativos)
                     if (regEstoque && regEstoque.data) {
                         for (let k in regEstoque.data) {
                             let item = regEstoque.data[k];
@@ -153,11 +153,13 @@
                             if (itemEan === info.codigo) {
                                 let cliente = (item.cliente || 'Geral').trim();
                                 let qtd = Number(item.estoque) || 0;
+
                                 if (cliente.toUpperCase().startsWith('CD')) {
                                     cdTotal += qtd;
                                 } else {
                                     if (!clientMap[cliente]) clientMap[cliente] = { estoque: 0, preco: 0 };
                                     clientMap[cliente].estoque += qtd;
+                                    lojaTotalSum += qtd;
                                 }
                             }
                         }
@@ -179,6 +181,8 @@
                         });
                     }
 
+                    let estoqueGeralTotal = lojaTotalSum + cdTotal;
+
                     let lojasHtml = "";
                     Object.keys(clientMap).sort().forEach(cli => {
                         let dados = clientMap[cli];
@@ -192,6 +196,11 @@
                     card.innerHTML = `
                         <h2 class="font-bold text-white text-sm">${info.descricao}</h2>
                         <div class="text-[10px] text-amber-400">EAN: ${info.codigo} | Cat: ${info.categoria}</div>
+                        <div class="text-[11px] bg-slate-950 p-2 rounded-xl border border-slate-800 flex justify-around text-slate-300 font-mono">
+                            <span>Estq. Loja: <strong class="text-white">${lojaTotalSum}</strong></span>
+                            <span>Estq. CD: <strong class="text-blue-400">${cdTotal}</strong></span>
+                            <span>Total: <strong class="text-amber-400">${estoqueGeralTotal}</strong></span>
+                        </div>
                         <table class="w-full text-xs text-left">
                             <tr class="text-slate-400 border-b border-slate-800"><th class="p-2">Loja</th><th class="p-2 text-right">Preço</th><th class="p-2 text-center">Loja</th><th class="p-2 text-center">CD</th></tr>
                             ${lojasHtml || '<tr><td colspan="4" class="p-2 text-center text-slate-500">Sem dados</td></tr>'}
