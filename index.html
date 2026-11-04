@@ -53,10 +53,18 @@
             } else {
                 html5QrCode = new Html5Qrcode("reader");
                 
+                // Configurações otimizadas para leitura rápida de códigos EAN/UPC
                 const config = { 
-                    fps: 20, 
+                    fps: 15, 
                     qrbox: { width: 280, height: 120 },
-                    aspectRatio: 1.777778
+                    aspectRatio: 1.777778,
+                    formatsToSupport: [
+                        Html5QrcodeSupportedFormats.EAN_13,
+                        Html5QrcodeSupportedFormats.EAN_8,
+                        Html5QrcodeSupportedFormats.UPC_A,
+                        Html5QrcodeSupportedFormats.UPC_E,
+                        Html5QrcodeSupportedFormats.CODE_128
+                    ]
                 };
 
                 html5QrCode.start({ facingMode: "environment" }, config, (text) => {
@@ -105,7 +113,6 @@
                         let ean = item.ean ? String(item.ean).trim() : '';
                         let nome = item.produto ? String(item.produto).trim().toUpperCase() : '';
 
-                        // FILTRO: Ignora se não tiver EAN válido
                         if (!ean || ean === '' || ean === '0') continue;
 
                         if (ean.includes(termo) || nome.includes(termoUpper)) {
@@ -121,7 +128,6 @@
                         let ean = v.ean ? String(v.ean).trim() : '';
                         let nome = v.produto ? String(v.produto).trim().toUpperCase() : '';
 
-                        // FILTRO: Ignora se não tiver EAN válido
                         if (!ean || ean === '' || ean === '0') return;
 
                         if (ean.includes(termo) || nome.includes(termoUpper)) {
@@ -145,7 +151,6 @@
                 lista.forEach(info => {
                     let clientMap = {}, cdTotal = 0, lojaTotalSum = 0;
 
-                    // 1. Preenche o estoque por loja e CD (mantendo valores negativos)
                     if (regEstoque && regEstoque.data) {
                         for (let k in regEstoque.data) {
                             let item = regEstoque.data[k];
@@ -165,7 +170,6 @@
                         }
                     }
 
-                    // 2. Associa o preço praticado por cada cliente vindo de vendas
                     if (regVendas && regVendas.data) {
                         regVendas.data.forEach(v => {
                             let vEan = v.ean ? String(v.ean).trim() : '';
@@ -188,7 +192,8 @@
                         let dados = clientMap[cli];
                         let est = dados.estoque || 0;
                         let prc = dados.preco > 0 ? dados.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00';
-                        lojasHtml += `<tr class="border-b border-slate-800"><td class="p-2">${cli}</td><td class="p-2 text-right text-emerald-400">${prc}</td><td class="p-2 text-center">${est}</td><td class="p-2 text-center text-blue-400">${cdTotal}</td></tr>`;
+                        // Removida a célula do estoque CD das linhas abaixo
+                        lojasHtml += `<tr class="border-b border-slate-800"><td class="p-2">${cli}</td><td class="p-2 text-right text-emerald-400">${prc}</td><td class="p-2 text-center font-semibold">${est}</td></tr>`;
                     });
 
                     let card = document.createElement('div');
@@ -202,8 +207,12 @@
                             <span>Total: <strong class="text-amber-400">${estoqueGeralTotal}</strong></span>
                         </div>
                         <table class="w-full text-xs text-left">
-                            <tr class="text-slate-400 border-b border-slate-800"><th class="p-2">Loja</th><th class="p-2 text-right">Preço</th><th class="p-2 text-center">Loja</th><th class="p-2 text-center">CD</th></tr>
-                            ${lojasHtml || '<tr><td colspan="4" class="p-2 text-center text-slate-500">Sem dados</td></tr>'}
+                            <tr class="text-slate-400 border-b border-slate-800">
+                                <th class="p-2">Loja</th>
+                                <th class="p-2 text-right">Preço</th>
+                                <th class="p-2 text-center">Estoque Loja</th>
+                            </tr>
+                            ${lojasHtml || '<tr><td colspan="3" class="p-2 text-center text-slate-500">Sem dados</td></tr>'}
                         </table>
                     `;
                     resultsContainer.appendChild(card);
