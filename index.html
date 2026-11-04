@@ -53,11 +53,14 @@
             } else {
                 html5QrCode = new Html5Qrcode("reader");
                 
-                // Configurações otimizadas para leitura rápida de códigos EAN/UPC
+                // Configuração ultra-acelerada priorizando leitura nativa de EAN
                 const config = { 
-                    fps: 15, 
-                    qrbox: { width: 280, height: 120 },
+                    fps: 25, 
+                    qrbox: { width: 300, height: 100 },
                     aspectRatio: 1.777778,
+                    experimentalFeatures: {
+                        useBarCodeDetectorIfSupported: true // Utiliza o leitor nativo do hardware do telemóvel (instantâneo)
+                    },
                     formatsToSupport: [
                         Html5QrcodeSupportedFormats.EAN_13,
                         Html5QrcodeSupportedFormats.EAN_8,
@@ -192,7 +195,6 @@
                         let dados = clientMap[cli];
                         let est = dados.estoque || 0;
                         let prc = dados.preco > 0 ? dados.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00';
-                        // Removida a célula do estoque CD das linhas abaixo
                         lojasHtml += `<tr class="border-b border-slate-800"><td class="p-2">${cli}</td><td class="p-2 text-right text-emerald-400">${prc}</td><td class="p-2 text-center font-semibold">${est}</td></tr>`;
                     });
 
