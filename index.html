@@ -27,7 +27,7 @@
                 <button type="submit" class="bg-slate-800 text-amber-400 px-3 py-2 rounded-xl text-xs border border-slate-700"><i class="fa-solid fa-magnifying-glass"></i></button>
             </form>
         </div>
-        <div id="status-alert" class="hidden p-2 rounded-xl text-xs text-center"></div>
+        <div id="status-alert" class="p-2 rounded-xl text-xs text-center bg-slate-900 text-amber-400 border border-slate-800">Carregando dados na memória...</div>
         <div id="results-container" class="space-y-4"></div>
     </div>
     <script>
@@ -36,11 +36,33 @@
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let html5QrCode = null, isScanning = false;
+        let regEstoque = null, regVendas = null;
+        let isDataLoaded = false;
+
         const btnScan = document.getElementById('btn-scan');
         const formManual = document.getElementById('form-manual');
         const inputSearch = document.getElementById('input-search');
         const resultsContainer = document.getElementById('results-container');
         const statusAlert = document.getElementById('status-alert');
+
+        // Carrega a base do Supabase 1x ao iniciar a página
+        async function carregarDadosMemoria() {
+            try {
+                const { data: cloudData, error } = await supabaseClient.from('nexxa_store').select('*');
+                if (error) throw error;
+
+                regEstoque = cloudData.find(d => d.id === 'estoque' || d.id === 'ESTOQUE');
+                regVendas = cloudData.find(d => d.id === 'vendas');
+                isDataLoaded = true;
+                
+                statusAlert.classList.add('hidden');
+            } catch (err) {
+                statusAlert.innerText = "Erro ao carregar dados: " + err.message;
+                statusAlert.className = "p-2 rounded-xl text-xs text-center bg-rose-950 text-rose-300 border border-rose-800";
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', carregarDadosMemoria);
 
         btnScan.addEventListener('click', () => {
             if (isScanning) {
@@ -53,13 +75,11 @@
             } else {
                 html5QrCode = new Html5Qrcode("reader");
                 
-                // Configuração ultra-acelerada priorizando leitura nativa de EAN
                 const config = { 
-                    fps: 25, 
-                    qrbox: { width: 300, height: 100 },
-                    aspectRatio: 1.777778,
+                    fps: 30, 
+                    qrbox: { width: 280, height: 120 },
                     experimentalFeatures: {
-                        useBarCodeDetectorIfSupported: true // Utiliza o leitor nativo do hardware do telemóvel (instantâneo)
+                        useBarCodeDetectorIfSupported: true
                     },
                     formatsToSupport: [
                         Html5QrcodeSupportedFormats.EAN_13,
@@ -78,9 +98,7 @@
                         btnScan.classList.replace('text-slate-950', 'text-white');
                         buscar(text.trim());
                     });
-                }, (errorMessage) => {
-                    // Ignora erros contínuos de frame
-                }).then(() => { 
+                }, () => {}).then(() => { 
                     isScanning = true; 
                     btnScan.innerText = "Parar Câmera"; 
                     btnScan.classList.replace('bg-amber-500', 'bg-rose-600');
@@ -97,133 +115,124 @@
             if (termo) buscar(termo);
         });
 
-        async function buscar(termo) {
-            statusAlert.innerText = `Buscando "${termo}"...`;
-            statusAlert.className = "p-2 rounded-xl text-xs text-center bg-slate-900 text-amber-400 border border-slate-800";
-            statusAlert.classList.remove('hidden');
+        function buscar(termo) {
+            if (!isDataLoaded) {
+                statusAlert.innerText = "Aguarde, dados ainda sendo carregados...";
+                statusAlert.className = "p-2 rounded-xl text-xs text-center bg-amber-950 text-amber-300 border border-amber-800";
+                statusAlert.classList.remove('hidden');
+                return;
+            }
 
-            try {
-                const { data: cloudData, error } = await supabaseClient.from('nexxa_store').select('*');
-                if (error) throw error;
+            let produtosMap = {};
+            const termoUpper = termo.toUpperCase();
 
-                let produtosMap = {};
-                const termoUpper = termo.toUpperCase();
+            if (regEstoque && regEstoque.data) {
+                for (let k in regEstoque.data) {
+                    let item = regEstoque.data[k];
+                    let ean = item.ean ? String(item.ean).trim() : '';
+                    let nome = item.produto ? String(item.produto).trim().toUpperCase() : '';
 
-                const regEstoque = cloudData.find(d => d.id === 'estoque' || d.id === 'ESTOQUE');
+                    if (!ean || ean === '' || ean === '0') continue;
+
+                    if (ean.includes(termo) || nome.includes(termoUpper)) {
+                        if (!produtosMap[ean]) produtosMap[ean] = { codigo: ean, descricao: item.produto, categoria: item.categoria || 'GERAL' };
+                    }
+                }
+            }
+
+            if (regVendas && regVendas.data) {
+                regVendas.data.forEach(v => {
+                    let ean = v.ean ? String(v.ean).trim() : '';
+                    let nome = v.produto ? String(v.produto).trim().toUpperCase() : '';
+
+                    if (!ean || ean === '' || ean === '0') return;
+
+                    if (ean.includes(termo) || nome.includes(termoUpper)) {
+                        if (!produtosMap[ean]) produtosMap[ean] = { codigo: ean, descricao: v.produto, categoria: v.categoria || 'GERAL' };
+                    }
+                });
+            }
+
+            const lista = Object.values(produtosMap);
+            if (lista.length === 0) {
+                statusAlert.innerText = "Nenhum produto encontrado.";
+                statusAlert.className = "p-2 rounded-xl text-xs text-center bg-rose-950 text-rose-300 border border-rose-800";
+                statusAlert.classList.remove('hidden');
+                resultsContainer.innerHTML = "";
+                return;
+            }
+
+            statusAlert.classList.add('hidden');
+            resultsContainer.innerHTML = "";
+
+            lista.forEach(info => {
+                let clientMap = {}, cdTotal = 0, lojaTotalSum = 0;
+
                 if (regEstoque && regEstoque.data) {
                     for (let k in regEstoque.data) {
                         let item = regEstoque.data[k];
-                        let ean = item.ean ? String(item.ean).trim() : '';
-                        let nome = item.produto ? String(item.produto).trim().toUpperCase() : '';
+                        let itemEan = item.ean ? String(item.ean).trim() : '';
+                        if (itemEan === info.codigo) {
+                            let cliente = (item.cliente || 'Geral').trim();
+                            let qtd = Number(item.estoque) || 0;
 
-                        if (!ean || ean === '' || ean === '0') continue;
-
-                        if (ean.includes(termo) || nome.includes(termoUpper)) {
-                            let key = ean;
-                            if (!produtosMap[key]) produtosMap[key] = { codigo: ean, descricao: item.produto, categoria: item.categoria || 'GERAL' };
+                            if (cliente.toUpperCase().startsWith('CD')) {
+                                cdTotal += qtd;
+                            } else {
+                                if (!clientMap[cliente]) clientMap[cliente] = { estoque: 0, preco: 0 };
+                                clientMap[cliente].estoque += qtd;
+                                lojaTotalSum += qtd;
+                            }
                         }
                     }
                 }
 
-                const regVendas = cloudData.find(d => d.id === 'vendas');
                 if (regVendas && regVendas.data) {
                     regVendas.data.forEach(v => {
-                        let ean = v.ean ? String(v.ean).trim() : '';
-                        let nome = v.produto ? String(v.produto).trim().toUpperCase() : '';
-
-                        if (!ean || ean === '' || ean === '0') return;
-
-                        if (ean.includes(termo) || nome.includes(termoUpper)) {
-                            let key = ean;
-                            if (!produtosMap[key]) produtosMap[key] = { codigo: ean, descricao: v.produto, categoria: v.categoria || 'GERAL' };
+                        let vEan = v.ean ? String(v.ean).trim() : '';
+                        if (vEan === info.codigo) {
+                            let cliente = (v.cliente || 'Geral').trim();
+                            let preco = parseFloat(v.vlrUnit || 0);
+                            if (!clientMap[cliente]) {
+                                clientMap[cliente] = { estoque: 0, preco: preco };
+                            } else {
+                                clientMap[cliente].preco = preco;
+                            }
                         }
                     });
                 }
 
-                const lista = Object.values(produtosMap);
-                if (lista.length === 0) {
-                    statusAlert.innerText = "Nenhum produto com EAN encontrado.";
-                    statusAlert.className = "p-2 rounded-xl text-xs text-center bg-rose-950 text-rose-300 border border-rose-800";
-                    resultsContainer.innerHTML = "";
-                    return;
-                }
+                let estoqueGeralTotal = lojaTotalSum + cdTotal;
 
-                statusAlert.classList.add('hidden');
-                resultsContainer.innerHTML = "";
-
-                lista.forEach(info => {
-                    let clientMap = {}, cdTotal = 0, lojaTotalSum = 0;
-
-                    if (regEstoque && regEstoque.data) {
-                        for (let k in regEstoque.data) {
-                            let item = regEstoque.data[k];
-                            let itemEan = item.ean ? String(item.ean).trim() : '';
-                            if (itemEan === info.codigo) {
-                                let cliente = (item.cliente || 'Geral').trim();
-                                let qtd = Number(item.estoque) || 0;
-
-                                if (cliente.toUpperCase().startsWith('CD')) {
-                                    cdTotal += qtd;
-                                } else {
-                                    if (!clientMap[cliente]) clientMap[cliente] = { estoque: 0, preco: 0 };
-                                    clientMap[cliente].estoque += qtd;
-                                    lojaTotalSum += qtd;
-                                }
-                            }
-                        }
-                    }
-
-                    if (regVendas && regVendas.data) {
-                        regVendas.data.forEach(v => {
-                            let vEan = v.ean ? String(v.ean).trim() : '';
-                            if (vEan === info.codigo) {
-                                let cliente = (v.cliente || 'Geral').trim();
-                                let preco = parseFloat(v.vlrUnit || 0);
-                                if (!clientMap[cliente]) {
-                                    clientMap[cliente] = { estoque: 0, preco: preco };
-                                } else {
-                                    clientMap[cliente].preco = preco;
-                                }
-                            }
-                        });
-                    }
-
-                    let estoqueGeralTotal = lojaTotalSum + cdTotal;
-
-                    let lojasHtml = "";
-                    Object.keys(clientMap).sort().forEach(cli => {
-                        let dados = clientMap[cli];
-                        let est = dados.estoque || 0;
-                        let prc = dados.preco > 0 ? dados.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00';
-                        lojasHtml += `<tr class="border-b border-slate-800"><td class="p-2">${cli}</td><td class="p-2 text-right text-emerald-400">${prc}</td><td class="p-2 text-center font-semibold">${est}</td></tr>`;
-                    });
-
-                    let card = document.createElement('div');
-                    card.className = "bg-slate-900 rounded-2xl p-4 border border-slate-800 space-y-3 shadow-xl";
-                    card.innerHTML = `
-                        <h2 class="font-bold text-white text-sm">${info.descricao}</h2>
-                        <div class="text-[10px] text-amber-400">EAN: ${info.codigo} | Cat: ${info.categoria}</div>
-                        <div class="text-[11px] bg-slate-950 p-2 rounded-xl border border-slate-800 flex justify-around text-slate-300 font-mono">
-                            <span>Estq. Loja: <strong class="text-white">${lojaTotalSum}</strong></span>
-                            <span>Estq. CD: <strong class="text-blue-400">${cdTotal}</strong></span>
-                            <span>Total: <strong class="text-amber-400">${estoqueGeralTotal}</strong></span>
-                        </div>
-                        <table class="w-full text-xs text-left">
-                            <tr class="text-slate-400 border-b border-slate-800">
-                                <th class="p-2">Loja</th>
-                                <th class="p-2 text-right">Preço</th>
-                                <th class="p-2 text-center">Estoque Loja</th>
-                            </tr>
-                            ${lojasHtml || '<tr><td colspan="3" class="p-2 text-center text-slate-500">Sem dados</td></tr>'}
-                        </table>
-                    `;
-                    resultsContainer.appendChild(card);
+                let lojasHtml = "";
+                Object.keys(clientMap).sort().forEach(cli => {
+                    let dados = clientMap[cli];
+                    let est = dados.estoque || 0;
+                    let prc = dados.preco > 0 ? dados.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00';
+                    lojasHtml += `<tr class="border-b border-slate-800"><td class="p-2">${cli}</td><td class="p-2 text-right text-emerald-400">${prc}</td><td class="p-2 text-center font-semibold">${est}</td></tr>`;
                 });
 
-            } catch (err) {
-                statusAlert.innerText = "Erro ao consultar: " + err.message;
-                statusAlert.className = "p-2 rounded-xl text-xs text-center bg-rose-950 text-rose-300 border border-rose-800";
-            }
+                let card = document.createElement('div');
+                card.className = "bg-slate-900 rounded-2xl p-4 border border-slate-800 space-y-3 shadow-xl";
+                card.innerHTML = `
+                    <h2 class="font-bold text-white text-sm">${info.descricao}</h2>
+                    <div class="text-[10px] text-amber-400">EAN: ${info.codigo} | Cat: ${info.categoria}</div>
+                    <div class="text-[11px] bg-slate-950 p-2 rounded-xl border border-slate-800 flex justify-around text-slate-300 font-mono">
+                        <span>Estq. Loja: <strong class="text-white">${lojaTotalSum}</strong></span>
+                        <span>Estq. CD: <strong class="text-blue-400">${cdTotal}</strong></span>
+                        <span>Total: <strong class="text-amber-400">${estoqueGeralTotal}</strong></span>
+                    </div>
+                    <table class="w-full text-xs text-left">
+                        <tr class="text-slate-400 border-b border-slate-800">
+                            <th class="p-2">Loja</th>
+                            <th class="p-2 text-right">Preço</th>
+                            <th class="p-2 text-center">Estoque Loja</th>
+                        </tr>
+                        ${lojasHtml || '<tr><td colspan="3" class="p-2 text-center text-slate-500">Sem dados</td></tr>'}
+                    </table>
+                `;
+                resultsContainer.appendChild(card);
+            });
         }
     </script>
 </body>
