@@ -81,21 +81,23 @@
 
         window.addEventListener('DOMContentLoaded', carregarDadosMemoria);
 
-        btnScan.addEventListener('click', () => {
+        // CONTROLO DE CÂMARA COM DESTRUÇÃO COMPLETA DE RECURSOS (EVITA LENTIDÃO EM LEITURAS SUCESSIVAS)
+        btnScan.addEventListener('click', async () => {
             if (isScanning) {
-                pararCamera();
+                await pararCameraTotal();
             } else {
-                iniciarCamera();
+                await iniciarCameraTotal();
             }
         });
 
-        function iniciarCamera() {
-            if (!html5QrCode) {
-                html5QrCode = new Html5Qrcode("reader");
-            }
+        async function iniciarCameraTotal() {
+            const readerElement = document.getElementById('reader');
+            readerElement.innerHTML = ''; 
+
+            html5QrCode = new Html5Qrcode("reader");
 
             const config = { 
-                fps: 20, 
+                fps: 25, 
                 qrbox: { width: 280, height: 120 },
                 aspectRatio: 1.777778,
                 formatsToSupport: [
@@ -107,34 +109,53 @@
                 ]
             };
 
-            html5QrCode.start({ facingMode: "environment" }, config, (text) => {
-                pararCamera();
-                inputSearch.value = text.trim();
-                buscar(text.trim());
-            }, () => {}).then(() => { 
+            try {
+                await html5QrCode.start(
+                    { facingMode: "environment" }, 
+                    config, 
+                    async (text) => {
+                        await pararCameraTotal();
+                        inputSearch.value = text.trim();
+                        buscar(text.trim());
+                    }, 
+                    () => {}
+                );
+
                 isScanning = true; 
                 btnScan.innerText = "Parar Câmera"; 
                 btnScan.classList.replace('bg-amber-500', 'bg-rose-600');
                 btnScan.classList.replace('text-slate-950', 'text-white');
-            }).catch(err => {
+
+            } catch (err) {
+                console.error("Erro ao iniciar câmara:", err);
                 statusAlert.innerText = "Erro na câmara. Verifique as permissões.";
                 statusAlert.className = "p-2 rounded-xl text-xs text-center bg-rose-950 text-rose-300 border border-rose-800";
                 statusAlert.classList.remove('hidden');
                 isScanning = false;
-            });
+                btnScan.innerText = "Escanear Código";
+            }
         }
 
-        function pararCamera() {
-            if (html5QrCode && isScanning) {
-                html5QrCode.stop().then(() => {
-                    isScanning = false; 
-                    btnScan.innerText = "Escanear Código"; 
-                    btnScan.classList.replace('bg-rose-600', 'bg-amber-500');
-                    btnScan.classList.replace('text-white', 'text-slate-950');
-                }).catch(() => {
-                    isScanning = false;
-                    btnScan.innerText = "Escanear Código";
-                });
+        async function pararCameraTotal() {
+            if (html5QrCode) {
+                try {
+                    if (html5QrCode.isScanning) {
+                        await html5QrCode.stop();
+                    }
+                    await html5QrCode.clear();
+                } catch (e) {
+                    console.error("Erro ao limpar câmara:", e);
+                }
+                html5QrCode = null;
+            }
+            isScanning = false;
+            btnScan.innerText = "Escanear Código";
+            btnScan.classList.replace('bg-rose-600', 'bg-amber-500');
+            btnScan.classList.replace('text-white', 'text-slate-950');
+            
+            const readerElement = document.getElementById('reader');
+            if (readerElement && !readerElement.querySelector('video')) {
+                readerElement.innerHTML = `<span class="text-xs text-slate-500">Câmera desativada</span>`;
             }
         }
 
