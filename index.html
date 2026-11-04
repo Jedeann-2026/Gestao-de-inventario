@@ -45,7 +45,6 @@
         const resultsContainer = document.getElementById('results-container');
         const statusAlert = document.getElementById('status-alert');
 
-        // Carrega a base do Supabase 1x ao iniciar a página
         async function carregarDadosMemoria() {
             try {
                 const { data: cloudData, error } = await supabaseClient.from('nexxa_store').select('*');
@@ -75,9 +74,11 @@
             } else {
                 html5QrCode = new Html5Qrcode("reader");
                 
+                // Configuração otimizada para máxima velocidade de captura da câmara
                 const config = { 
-                    fps: 30, 
-                    qrbox: { width: 280, height: 120 },
+                    fps: 35, 
+                    qrbox: { width: 250, height: 100 },
+                    aspectRatio: 1.777778,
                     experimentalFeatures: {
                         useBarCodeDetectorIfSupported: true
                     },
@@ -85,12 +86,18 @@
                         Html5QrcodeSupportedFormats.EAN_13,
                         Html5QrcodeSupportedFormats.EAN_8,
                         Html5QrcodeSupportedFormats.UPC_A,
-                        Html5QrcodeSupportedFormats.UPC_E,
-                        Html5QrcodeSupportedFormats.CODE_128
+                        Html5QrcodeSupportedFormats.UPC_E
                     ]
                 };
 
-                html5QrCode.start({ facingMode: "environment" }, config, (text) => {
+                // Configura restrições de câmara para resoluções menores (acelera o processamento por frame)
+                const constraints = {
+                    facingMode: "environment",
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                };
+
+                html5QrCode.start(constraints, config, (text) => {
                     html5QrCode.stop().then(() => {
                         isScanning = false; 
                         btnScan.innerText = "Escanear Código";
