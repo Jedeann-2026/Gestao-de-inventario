@@ -281,6 +281,7 @@
             }
         });
 
+        /*
         async function iniciarCameraTotal() {
             const readerElement = document.getElementById('reader');
             readerElement.innerHTML = ''; 
@@ -335,7 +336,77 @@
                 btnScan.innerText = "Escanear Código";
             }
         }
+*/
 
+async function iniciarCameraTotal() {
+    const readerElement = document.getElementById('reader');
+    readerElement.innerHTML = ''; 
+
+    if (html5QrCode) {
+        try {
+            await html5QrCode.clear();
+        } catch(e) {}
+        html5QrCode = null;
+    }
+
+    html5QrCode = new Html5Qrcode("reader");
+
+    // Configuração flexível: remove restrições rígidas de formato para aceitar leitura imediata
+    const config = { 
+        fps: 20, 
+        qrbox: { width: 300, height: 150 },
+        aspectRatio: 1.0
+    };
+
+    try {
+        // Tenta iniciar priorizando a câmara traseira ("environment")
+        await html5QrCode.start(
+            { facingMode: "environment" }, 
+            config, 
+            async (text) => {
+                // Sucesso na leitura: para o leitor e joga no campo de busca
+                await pararCameraTotal();
+                inputSearch.value = text.trim();
+                buscar(text.trim());
+            }, 
+            (errorMessage) => {
+                // Erros de frame ignorados de propósito para não travar o console
+            }
+        );
+
+        isScanning = true; 
+        btnScan.innerText = "Parar Câmera"; 
+        btnScan.classList.replace('bg-amber-500', 'bg-rose-600');
+        btnScan.classList.replace('text-slate-950', 'text-white');
+
+    } catch (err) {
+        console.warn("Tentando fallback de câmara...", err);
+        // Fallback caso o celular bloqueie o "environment" específico: tenta qualquer câmara disponível
+        try {
+            await html5QrCode.start(
+                {}, 
+                config, 
+                async (text) => {
+                    await pararCameraTotal();
+                    inputSearch.value = text.trim();
+                    buscar(text.trim());
+                }, 
+                () => {}
+            );
+            isScanning = true; 
+            btnScan.innerText = "Parar Câmera"; 
+            btnScan.classList.replace('bg-amber-500', 'bg-rose-600');
+            btnScan.classList.replace('text-white', 'text-slate-950');
+        } catch (err2) {
+            console.error("Erro total ao iniciar câmara:", err2);
+            statusAlert.innerText = "Erro na câmara. Verifique as permissões do navegador.";
+            statusAlert.className = "p-2 rounded-xl text-xs text-center bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800";
+            statusAlert.classList.remove('hidden');
+            isScanning = false;
+            btnScan.innerText = "Escanear Código";
+        }
+    }
+}
         async function pararCameraTotal() {
             if (html5QrCode) {
                 try {
