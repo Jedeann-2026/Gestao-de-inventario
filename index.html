@@ -14,7 +14,41 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
+        #reader { position: relative; }
         #reader video { object-fit: cover !important; border-radius: 0.75rem; }
+        
+        /* Moldura estilo Scanner de Código de Barras */
+        .scanner-laser-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 120px;
+            border: 2px solid rgba(245, 158, 11, 0.8); /* Borda Âmbar */
+            border-radius: 12px;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45); /* Escurece fora da caixa */
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* Linha laser vermelha centralizada no meio */
+        .scanner-laser-line {
+            position: absolute;
+            top: 50%;
+            left: 5%;
+            width: 90%;
+            height: 2px;
+            background-color: #ef4444; /* Vermelho vibrante */
+            box-shadow: 0 0 8px #ef4444;
+            transform: translateY(-50%);
+            animation: pulseLaser 1.5s infinite ease-in-out;
+        }
+
+        @keyframes pulseLaser {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 1; }
+        }
     </style>
 </head>
 <body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col font-sans p-4 transition-colors duration-200">
@@ -272,7 +306,7 @@
             return ultimoPreco;
         }
 
-        // BOTÃO DE LIGA/DESLIGA DA CÂMARA COM TRATAMENTO DE ESTADO
+        // BOTÃO DE LIGA/DESLIGA DA CÂMARA COM MIRA LASER
         btnScan.addEventListener('click', async () => {
             if (isScanning) {
                 await pararCameraTotal();
@@ -281,12 +315,10 @@
             }
         });
 
-        /*
         async function iniciarCameraTotal() {
             const readerElement = document.getElementById('reader');
             readerElement.innerHTML = ''; 
 
-            // Garante que qualquer instância anterior órfã seja eliminada
             if (html5QrCode) {
                 try {
                     await html5QrCode.clear();
@@ -294,19 +326,23 @@
                 html5QrCode = null;
             }
 
-            html5QrCode = new Html5Qrcode("reader");
+            // Adiciona a mira visual no leitor
+            const overlay = document.createElement('div');
+            overlay.className = 'scanner-laser-box';
+            overlay.innerHTML = '<div class="scanner-laser-line"></div>';
+            readerElement.appendChild(overlay);
+
+            // Ativa o leitor nativo acelerado do dispositivo móvel
+            html5QrCode = new Html5Qrcode("reader", {
+                experimentalFeatures: {
+                    useBarCodeDetectorIfSupported: true
+                }
+            });
 
             const config = { 
-                fps: 15, 
+                fps: 20, 
                 qrbox: { width: 280, height: 120 },
-                aspectRatio: 1.777778,
-                formatsToSupport: [
-                    Html5QrcodeSupportedFormats.EAN_13,
-                    Html5QrcodeSupportedFormats.EAN_8,
-                    Html5QrcodeSupportedFormats.UPC_A,
-                    Html5QrcodeSupportedFormats.UPC_E,
-                    Html5QrcodeSupportedFormats.CODE_128
-                ]
+                aspectRatio: 1.0
             };
 
             try {
@@ -314,7 +350,6 @@
                     { facingMode: "environment" }, 
                     config, 
                     async (text) => {
-                        // LEITURA BEM-SUCEDIDA: Para a câmara imediatamente de forma limpa
                         await pararCameraTotal();
                         inputSearch.value = text.trim();
                         buscar(text.trim());
@@ -328,85 +363,33 @@
                 btnScan.classList.replace('text-slate-950', 'text-white');
 
             } catch (err) {
-                console.error("Erro ao iniciar câmara:", err);
-                statusAlert.innerText = "Erro na câmara. Verifique as permissões.";
-                statusAlert.className = "p-2 rounded-xl text-xs text-center bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800";
-                statusAlert.classList.remove('hidden');
-                isScanning = false;
-                btnScan.innerText = "Escanear Código";
+                console.warn("Tentando fallback de câmara...", err);
+                try {
+                    await html5QrCode.start(
+                        {}, 
+                        config, 
+                        async (text) => {
+                            await pararCameraTotal();
+                            inputSearch.value = text.trim();
+                            buscar(text.trim());
+                        }, 
+                        () => {}
+                    );
+                    isScanning = true; 
+                    btnScan.innerText = "Parar Câmera"; 
+                    btnScan.classList.replace('bg-amber-500', 'bg-rose-600');
+                    btnScan.classList.replace('text-white', 'text-slate-950');
+                } catch (err2) {
+                    console.error("Erro total ao iniciar câmara:", err2);
+                    statusAlert.innerText = "Erro na câmara. Verifique as permissões.";
+                    statusAlert.className = "p-2 rounded-xl text-xs text-center bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800";
+                    statusAlert.classList.remove('hidden');
+                    isScanning = false;
+                    btnScan.innerText = "Escanear Código";
+                }
             }
         }
-*/
 
-async function iniciarCameraTotal() {
-    const readerElement = document.getElementById('reader');
-    readerElement.innerHTML = ''; 
-
-    if (html5QrCode) {
-        try {
-            await html5QrCode.clear();
-        } catch(e) {}
-        html5QrCode = null;
-    }
-
-    html5QrCode = new Html5Qrcode("reader");
-
-    // Configuração flexível: remove restrições rígidas de formato para aceitar leitura imediata
-    const config = { 
-        fps: 20, 
-        qrbox: { width: 300, height: 150 },
-        aspectRatio: 1.0
-    };
-
-    try {
-        // Tenta iniciar priorizando a câmara traseira ("environment")
-        await html5QrCode.start(
-            { facingMode: "environment" }, 
-            config, 
-            async (text) => {
-                // Sucesso na leitura: para o leitor e joga no campo de busca
-                await pararCameraTotal();
-                inputSearch.value = text.trim();
-                buscar(text.trim());
-            }, 
-            (errorMessage) => {
-                // Erros de frame ignorados de propósito para não travar o console
-            }
-        );
-
-        isScanning = true; 
-        btnScan.innerText = "Parar Câmera"; 
-        btnScan.classList.replace('bg-amber-500', 'bg-rose-600');
-        btnScan.classList.replace('text-slate-950', 'text-white');
-
-    } catch (err) {
-        console.warn("Tentando fallback de câmara...", err);
-        // Fallback caso o celular bloqueie o "environment" específico: tenta qualquer câmara disponível
-        try {
-            await html5QrCode.start(
-                {}, 
-                config, 
-                async (text) => {
-                    await pararCameraTotal();
-                    inputSearch.value = text.trim();
-                    buscar(text.trim());
-                }, 
-                () => {}
-            );
-            isScanning = true; 
-            btnScan.innerText = "Parar Câmera"; 
-            btnScan.classList.replace('bg-amber-500', 'bg-rose-600');
-            btnScan.classList.replace('text-white', 'text-slate-950');
-        } catch (err2) {
-            console.error("Erro total ao iniciar câmara:", err2);
-            statusAlert.innerText = "Erro na câmara. Verifique as permissões do navegador.";
-            statusAlert.className = "p-2 rounded-xl text-xs text-center bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800";
-            statusAlert.classList.remove('hidden');
-            isScanning = false;
-            btnScan.innerText = "Escanear Código";
-        }
-    }
-}
         async function pararCameraTotal() {
             if (html5QrCode) {
                 try {
@@ -425,7 +408,7 @@ async function iniciarCameraTotal() {
             btnScan.classList.replace('text-white', 'text-slate-950');
             
             const readerElement = document.getElementById('reader');
-            if (readerElement && !readerElement.querySelector('video')) {
+            if (readerElement) {
                 readerElement.innerHTML = `<span class="text-xs text-slate-500">Câmera desativada</span>`;
             }
         }
