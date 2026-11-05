@@ -319,46 +319,24 @@
             const readerElement = document.getElementById('reader');
             readerElement.innerHTML = ''; 
 
-            if (html5QrCode) {
-                try {
-                    await html5QrCode.clear();
-                } catch(e) {}
-                html5QrCode = null;
-            }
+            html5QrCode = new Html5Qrcode("reader");
 
-            // Adiciona a mira visual no leitor
-            const overlay = document.createElement('div');
-            overlay.className = 'scanner-laser-box';
-            overlay.innerHTML = '<div class="scanner-laser-line"></div>';
-            readerElement.appendChild(overlay);
-
-            html5QrCode = new Html5Qrcode("reader", {
-                experimentalFeatures: {
-                    useBarCodeDetectorIfSupported: true
-                }
-            });
-
-            // Configuração focada em velocidade máxima para códigos de barras lineares
             const config = { 
-                fps: 30, // Aumentado para leitura ultra-fluida
-                qrbox: { width: 320, height: 140 }, // Área maior para abranger o código facilmente
-                aspectRatio: 1.0,
+                fps: 25, 
+                qrbox: { width: 280, height: 120 },
+                aspectRatio: 1.777778,
                 formatsToSupport: [
                     Html5QrcodeSupportedFormats.EAN_13,
                     Html5QrcodeSupportedFormats.EAN_8,
                     Html5QrcodeSupportedFormats.UPC_A,
                     Html5QrcodeSupportedFormats.UPC_E,
-                    Html5QrcodeSupportedFormats.CODE_128,
-                    Html5QrcodeSupportedFormats.CODE_39
+                    Html5QrcodeSupportedFormats.CODE_128
                 ]
             };
 
             try {
                 await html5QrCode.start(
-                    { 
-                        facingMode: "environment",
-                        advanced: [{ focusMode: "continuous" }]
-                    }, 
+                    { facingMode: "environment" }, 
                     config, 
                     async (text) => {
                         await pararCameraTotal();
@@ -374,32 +352,15 @@
                 btnScan.classList.replace('text-slate-950', 'text-white');
 
             } catch (err) {
-                console.warn("Tentando fallback de câmara sem constraints avançadas...", err);
-                try {
-                    await html5QrCode.start(
-                        { facingMode: "environment" }, 
-                        config, 
-                        async (text) => {
-                            await pararCameraTotal();
-                            inputSearch.value = text.trim();
-                            buscar(text.trim());
-                        }, 
-                        () => {}
-                    );
-                    isScanning = true; 
-                    btnScan.innerText = "Parar Câmera"; 
-                    btnScan.classList.replace('bg-amber-500', 'bg-rose-600');
-                    btnScan.classList.replace('text-white', 'text-slate-950');
-                } catch (err2) {
-                    console.error("Erro total ao iniciar câmara:", err2);
-                    statusAlert.innerText = "Erro na câmara. Verifique as permissões.";
-                    statusAlert.className = "p-2 rounded-xl text-xs text-center bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800";
-                    statusAlert.classList.remove('hidden');
-                    isScanning = false;
-                    btnScan.innerText = "Escanear Código";
-                }
+                console.error("Erro ao iniciar câmara:", err);
+                statusAlert.innerText = "Erro na câmara. Verifique as permissões.";
+                statusAlert.className = "p-2 rounded-xl text-xs text-center bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800";
+                statusAlert.classList.remove('hidden');
+                isScanning = false;
+                btnScan.innerText = "Escanear Código";
             }
         }
+
 
         async function pararCameraTotal() {
             if (html5QrCode) {
