@@ -272,7 +272,7 @@
             return ultimoPreco;
         }
 
-        // CONTROLO DE CÂMARA
+        // CONTROLO DE CÂMARA OTIMIZADO PARA 60 FPS
         btnScan.addEventListener('click', async () => {
             if (isScanning) {
                 await pararCameraTotal();
@@ -288,21 +288,24 @@
             html5QrCode = new Html5Qrcode("reader");
 
             const config = { 
-                fps: 25, 
-                qrbox: { width: 280, height: 120 },
+                fps: 60, // Alta taxa de quadros para leitura instantânea
+                qrbox: { width: 300, height: 110 },
                 aspectRatio: 1.777778,
                 formatsToSupport: [
                     Html5QrcodeSupportedFormats.EAN_13,
                     Html5QrcodeSupportedFormats.EAN_8,
-                    Html5QrcodeSupportedFormats.UPC_A,
-                    Html5QrcodeSupportedFormats.UPC_E,
                     Html5QrcodeSupportedFormats.CODE_128
                 ]
             };
 
+            const constraints = {
+                facingMode: "environment",
+                advanced: [{ focusMode: "continuous" }]
+            };
+
             try {
                 await html5QrCode.start(
-                    { facingMode: "environment" }, 
+                    constraints, 
                     config, 
                     async (text) => {
                         await pararCameraTotal();
@@ -318,12 +321,29 @@
                 btnScan.classList.replace('text-slate-950', 'text-white');
 
             } catch (err) {
-                console.error("Erro ao iniciar câmara:", err);
-                statusAlert.innerText = "Erro na câmara. Verifique as permissões.";
-                statusAlert.className = "p-2 rounded-xl text-xs text-center bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800";
-                statusAlert.classList.remove('hidden');
-                isScanning = false;
-                btnScan.innerText = "Escanear Código";
+                try {
+                    await html5QrCode.start(
+                        { facingMode: "environment" }, 
+                        config, 
+                        async (text) => {
+                            await pararCameraTotal();
+                            inputSearch.value = text.trim();
+                            buscar(text.trim());
+                        }, 
+                        () => {}
+                    );
+                    isScanning = true;
+                    btnScan.innerText = "Parar Câmera"; 
+                    btnScan.classList.replace('bg-amber-500', 'bg-rose-600');
+                    btnScan.classList.replace('text-slate-950', 'text-white');
+                } catch (innerErr) {
+                    console.error("Erro ao iniciar câmara:", innerErr);
+                    statusAlert.innerText = "Erro na câmara. Verifique as permissões.";
+                    statusAlert.className = "p-2 rounded-xl text-xs text-center bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800";
+                    statusAlert.classList.remove('hidden');
+                    isScanning = false;
+                    btnScan.innerText = "Escanear Código";
+                }
             }
         }
 
@@ -413,7 +433,7 @@
             const dataFimVal = filtroFim.value ? new Date(filtroFim.value + 'T23:59:59') : null;
 
             lista.forEach(info => {
-                let clientEstoqueMap = {}, cdTotal = 0, lojaTotalSum = 0;
+                let clientMap = {}, cdTotal = 0, lojaTotalSum = 0;
                 let vendasPorLojaMap = {};
                 let totalVendidoGeral = 0;
                 let qtdVendidaGeral = 0;
@@ -428,40 +448,56 @@
                             if (cliente.toUpperCase().startsWith('CD')) {
                                 cdTotal += qtd;
                             } else {
-                                if (!clientEstoqueMap[cliente]) clientEstoqueMap[cliente] = 0;
-                                clientEstoqueMap[cliente] += qtd;
+                                if (!clientMap[cliente]) clientMap[cliente] = { estoque: 0, preco: 0 };
+                                clientMap[cliente].estoque += qtd;
                                 lojaTotalSum += qtd;
                             }
                         }
                     }
                 }
 
-                // Processar Vendas com Filtro de Período e Agrupamento por Loja
+                // Processar Vendas (Preço de Venda global + Métricas de Período)
                 if (regVendas && regVendas.data) {
                     regVendas.data.forEach(v => {
                         if (String(v.ean).trim() === info.codigo) {
-                            let dataVendaStr = v.data || v.dataVenda || v.created_at || '';
-                            if (dataInicioVal || dataFimVal) {
-                                if (!dataVendaStr) return;
-                                let dataVendaObj = new Date(dataVendaStr);
-                                if (isNaN(dataVendaObj)) return;
-                                if (dataInicioVal && dataVendaObj < dataInicioVal) return;
-                                if (dataFimVal && dataVendaObj > dataFimVal) return;
-                            }
-
                             let loja = (v.cliente || v.loja || 'Geral').trim();
+                            let preco = parseFloat(v.vlrUnit || v.valorUnitario || 0);
                             let qtdV = Number(v.qtd || v.quantidade || 1);
-                            let vlrU = parseFloat(v.vlrUnit || v.valorUnitario || 0);
-                            let totalLinha = qtdV * vlrU;
 
-                            totalVendidoGeral += totalLinha;
-                            qtdVendidaGeral += qtdV;
-
-                            if (!vendasPorLojaMap[loja]) {
-                                vendasPorLojaMap[loja] = { qtdVenda: 0, totalVenda: 0 };
+                            if (!clientMap[loja]) {
+                                clientMap[loja] = { estoque: 0, preco: 0 };
                             }
-                            vendasPorLojaMap[loja].qtdVenda += qtdV;
-                            vendasPorLojaMap[loja].totalVenda += totalLinha;
+                            if (preco > 0) {
+                                clientMap[loja].preco = preco;
+                            }
+
+                            let dataVendaStr = v.data || v.dataVenda || v.created_at || '';
+                            let dentroDoPeriodo = true;
+                            if (dataInicioVal || dataFimVal) {
+                                if (!dataVendaStr) {
+                                    dentroDoPeriodo = false;
+                                } else {
+                                    let dataVendaObj = new Date(dataVendaStr);
+                                    if (isNaN(dataVendaObj)) {
+                                        dentroDoPeriodo = false;
+                                    } else {
+                                        if (dataInicioVal && dataVendaObj < dataInicioVal) dentroDoPeriodo = false;
+                                        if (dataFimVal && dataVendaObj > dataFimVal) dentroDoPeriodo = false;
+                                    }
+                                }
+                            }
+
+                            if (dentroDoPeriodo) {
+                                let totalLinha = qtdV * preco;
+                                totalVendidoGeral += totalLinha;
+                                qtdVendidaGeral += qtdV;
+
+                                if (!vendasPorLojaMap[loja]) {
+                                    vendasPorLojaMap[loja] = { qtdVenda: 0, totalVenda: 0 };
+                                }
+                                vendasPorLojaMap[loja].qtdVenda += qtdV;
+                                vendasPorLojaMap[loja].totalVenda += totalLinha;
+                            }
                         }
                     });
                 }
@@ -477,17 +513,20 @@
                     </div>
                 `;
 
-                let todasLojasSet = new Set([...Object.keys(clientEstoqueMap), ...Object.keys(vendasPorLojaMap)]);
+                let todasLojasSet = new Set([...Object.keys(clientMap), ...Object.keys(vendasPorLojaMap)]);
 
                 let detalhesLojaHtml = "";
                 Array.from(todasLojasSet).sort().forEach(loja => {
-                    let estLoja = clientEstoqueMap[loja] || 0;
+                    let dadosLoja = clientMap[loja] || { estoque: 0, preco: 0 };
+                    let estLoja = dadosLoja.estoque || 0;
+                    let prcLoja = dadosLoja.preco > 0 ? dadosLoja.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'Sem registro';
                     let vendaInfo = vendasPorLojaMap[loja] || { qtdVenda: 0, totalVenda: 0 };
                     let totStr = vendaInfo.totalVenda.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
                     detalhesLojaHtml += `
                         <tr class="border-b border-slate-200 dark:border-slate-900 text-[11px]">
                             <td class="p-1.5 font-medium text-slate-800 dark:text-slate-200">${loja}</td>
+                            <td class="p-1.5 text-right font-semibold text-emerald-600 dark:text-emerald-400">${prcLoja}</td>
                             <td class="p-1.5 text-center text-amber-600 dark:text-amber-400 font-semibold">${estLoja}</td>
                             <td class="p-1.5 text-center text-slate-900 dark:text-white font-bold">${vendaInfo.qtdVenda} un</td>
                             <td class="p-1.5 text-right text-emerald-600 dark:text-emerald-400 font-medium">${totStr}</td>
@@ -516,7 +555,7 @@
                         ${ultimoPrecoHtml}
                     </div>
 
-                    <!-- Detalhado por Loja (Estoque e Vendas) -->
+                    <!-- Detalhado por Loja (Preço, Estoque e Vendas) -->
                     <div class="space-y-1">
                         <div class="text-[11px] font-semibold text-slate-700 dark:text-slate-300"><i class="fa-solid fa-store mr-1"></i> Detalhes por Loja</div>
                         <div class="max-h-44 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-950">
@@ -524,13 +563,14 @@
                                 <thead class="text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/50 sticky top-0">
                                     <tr>
                                         <th class="p-1.5 text-[10px]">Loja</th>
-                                        <th class="p-1.5 text-[10px] text-center">Estq. Loja</th>
-                                        <th class="p-1.5 text-[10px] text-center">Qtd Venda</th>
-                                        <th class="p-1.5 text-[10px] text-right">Total Faturado</th>
+                                        <th class="p-1.5 text-[10px] text-right">Preço Venda</th>
+                                        <th class="p-1.5 text-[10px] text-center">Estq.</th>
+                                        <th class="p-1.5 text-[10px] text-center">Vendas</th>
+                                        <th class="p-1.5 text-[10px] text-right">Faturado</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    ${detalhesLojaHtml || '<tr><td colspan="4" class="p-3 text-center text-slate-400 dark:text-slate-500">Nenhum dado encontrado</td></tr>'}
+                                    ${detalhesLojaHtml || '<tr><td colspan="5" class="p-3 text-center text-slate-400 dark:text-slate-500">Nenhum dado encontrado</td></tr>'}
                                 </tbody>
                             </table>
                         </div>
