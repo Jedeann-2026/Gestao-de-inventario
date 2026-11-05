@@ -272,7 +272,7 @@
             return ultimoPreco;
         }
 
-        // CONTROLO DE CÂMARA OTIMIZADO PARA 60 FPS
+        // BOTÃO DE LIGA/DESLIGA DA CÂMARA COM TRATAMENTO DE ESTADO
         btnScan.addEventListener('click', async () => {
             if (isScanning) {
                 await pararCameraTotal();
@@ -281,15 +281,22 @@
             }
         });
 
-
         async function iniciarCameraTotal() {
             const readerElement = document.getElementById('reader');
             readerElement.innerHTML = ''; 
 
+            // Garante que qualquer instância anterior órfã seja eliminada
+            if (html5QrCode) {
+                try {
+                    await html5QrCode.clear();
+                } catch(e) {}
+                html5QrCode = null;
+            }
+
             html5QrCode = new Html5Qrcode("reader");
 
             const config = { 
-                fps: 25, 
+                fps: 15, 
                 qrbox: { width: 280, height: 120 },
                 aspectRatio: 1.777778,
                 formatsToSupport: [
@@ -306,6 +313,7 @@
                     { facingMode: "environment" }, 
                     config, 
                     async (text) => {
+                        // LEITURA BEM-SUCEDIDA: Para a câmara imediatamente de forma limpa
                         await pararCameraTotal();
                         inputSearch.value = text.trim();
                         buscar(text.trim());
@@ -328,7 +336,7 @@
             }
         }
 
-      async function pararCameraTotal() {
+        async function pararCameraTotal() {
             if (html5QrCode) {
                 try {
                     if (html5QrCode.isScanning) {
