@@ -281,7 +281,8 @@
             }
         });
 
-        async function iniciarCameraTotal() {
+
+/*        async function iniciarCameraTotal() {
             const readerElement = document.getElementById('reader');
             readerElement.innerHTML = ''; 
 
@@ -347,7 +348,77 @@
             }
         }
 
-        async function pararCameraTotal() {
+*/
+async function iniciarCameraTotal() {
+    const readerElement = document.getElementById('reader');
+    readerElement.innerHTML = ''; 
+
+    // Verifica se o navegador suporta acesso à câmara / ambiente seguro
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("O seu navegador ou ambiente não suporta acesso à câmara. Certifique-se de usar HTTPS ou localhost.");
+        statusAlert.innerText = "Erro: Acesso à câmara requer ambiente seguro (HTTPS).";
+        statusAlert.className = "p-2 rounded-xl text-xs text-center bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800";
+        statusAlert.classList.remove('hidden');
+        return;
+    }
+
+    html5QrCode = new Html5Qrcode("reader");
+
+    const config = { 
+        fps: 60, 
+        qrbox: { width: 300, height: 110 },
+        aspectRatio: 1.777778,
+        formatsToSupport: [
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.CODE_128
+        ]
+    };
+
+    try {
+        // Tenta iniciar diretamente com a câmara traseira (environment)
+        await html5QrCode.start(
+            { facingMode: "environment" }, 
+            config, 
+            async (text) => {
+                await pararCameraTotal();
+                inputSearch.value = text.trim();
+                buscar(text.trim());
+            }, 
+            () => {}
+        );
+
+        isScanning = true; 
+        btnScan.innerText = "Parar Câmera"; 
+        btnScan.classList.replace('bg-amber-500', 'bg-rose-600');
+        btnScan.classList.replace('text-slate-950', 'text-white');
+
+    } catch (err) {
+        console.error("Erro detalhado da câmara:", err);
+        
+        let mensagemErro = "Não foi possível aceder à câmara.";
+        if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+            mensagemErro = "Permissão negada. Conceda acesso à câmara nas definições do seu navegador.";
+        } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+            mensagemErro = "Nenhuma câmara traseira detetada no dispositivo.";
+        } else if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+            mensagemErro = "Erro: Os navegadores exigem ligação segura (HTTPS) para usar a câmara.";
+        }
+
+        statusAlert.innerText = mensagemErro;
+        statusAlert.className = "p-2 rounded-xl text-xs text-center bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800";
+        statusAlert.classList.remove('hidden');
+        
+        isScanning = false;
+        btnScan.innerText = "Escanear Código";
+        if (readerElement) {
+            readerElement.innerHTML = `<span class="text-xs text-slate-500">Câmera desativada</span>`;
+        }
+    }
+}  
+
+
+      async function pararCameraTotal() {
             if (html5QrCode) {
                 try {
                     if (html5QrCode.isScanning) {
