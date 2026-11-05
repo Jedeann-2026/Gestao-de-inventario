@@ -282,31 +282,28 @@
         });
 
 
-/*        async function iniciarCameraTotal() {
+        async function iniciarCameraTotal() {
             const readerElement = document.getElementById('reader');
             readerElement.innerHTML = ''; 
 
             html5QrCode = new Html5Qrcode("reader");
 
             const config = { 
-                fps: 60, // Alta taxa de quadros para leitura instantânea
-                qrbox: { width: 300, height: 110 },
+                fps: 25, 
+                qrbox: { width: 280, height: 120 },
                 aspectRatio: 1.777778,
                 formatsToSupport: [
                     Html5QrcodeSupportedFormats.EAN_13,
                     Html5QrcodeSupportedFormats.EAN_8,
+                    Html5QrcodeSupportedFormats.UPC_A,
+                    Html5QrcodeSupportedFormats.UPC_E,
                     Html5QrcodeSupportedFormats.CODE_128
                 ]
             };
 
-            const constraints = {
-                facingMode: "environment",
-                advanced: [{ focusMode: "continuous" }]
-            };
-
             try {
                 await html5QrCode.start(
-                    constraints, 
+                    { facingMode: "environment" }, 
                     config, 
                     async (text) => {
                         await pararCameraTotal();
@@ -322,132 +319,14 @@
                 btnScan.classList.replace('text-slate-950', 'text-white');
 
             } catch (err) {
-                try {
-                    await html5QrCode.start(
-                        { facingMode: "environment" }, 
-                        config, 
-                        async (text) => {
-                            await pararCameraTotal();
-                            inputSearch.value = text.trim();
-                            buscar(text.trim());
-                        }, 
-                        () => {}
-                    );
-                    isScanning = true;
-                    btnScan.innerText = "Parar Câmera"; 
-                    btnScan.classList.replace('bg-amber-500', 'bg-rose-600');
-                    btnScan.classList.replace('text-slate-950', 'text-white');
-                } catch (innerErr) {
-                    console.error("Erro ao iniciar câmara:", innerErr);
-                    statusAlert.innerText = "Erro na câmara. Verifique as permissões.";
-                    statusAlert.className = "p-2 rounded-xl text-xs text-center bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800";
-                    statusAlert.classList.remove('hidden');
-                    isScanning = false;
-                    btnScan.innerText = "Escanear Código";
-                }
+                console.error("Erro ao iniciar câmara:", err);
+                statusAlert.innerText = "Erro na câmara. Verifique as permissões.";
+                statusAlert.className = "p-2 rounded-xl text-xs text-center bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800";
+                statusAlert.classList.remove('hidden');
+                isScanning = false;
+                btnScan.innerText = "Escanear Código";
             }
         }
-
-*/
-
-async function iniciarCameraTotal() {
-    const readerElement = document.getElementById('reader');
-    readerElement.innerHTML = ''; 
-
-    // Verifica se o navegador suporta acesso à câmara / ambiente seguro
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        alert("O seu navegador ou ambiente não suporta acesso à câmara. Certifique-se de usar HTTPS ou localhost.");
-        statusAlert.innerText = "Erro: Acesso à câmara requer ambiente seguro (HTTPS).";
-        statusAlert.className = "p-2 rounded-xl text-xs text-center bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800";
-        statusAlert.classList.remove('hidden');
-        return;
-    }
-
-    html5QrCode = new Html5Qrcode("reader");
-
-    // Configuração otimizada para leitura rápida de códigos de barras
-    const config = { 
-        fps: 60, 
-        qrbox: { width: 320, height: 140 }, // Área mais larga ideal para EAN-13 e Code 128
-        aspectRatio: 1.777778,
-        formatsToSupport: [
-            Html5QrcodeSupportedFormats.EAN_13,
-            Html5QrcodeSupportedFormats.EAN_8,
-            Html5QrcodeSupportedFormats.CODE_128
-        ]
-    };
-
-    // Restrições avançadas para tentar forçar foco contínuo e resolução adequada
-    const constraints = {
-        facingMode: "environment",
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-        advanced: [{ focusMode: "continuous" }]
-    };
-
-    try {
-        // Tenta iniciar com restrições avançadas (foco contínuo e alta resolução)
-        await html5QrCode.start(
-            constraints, 
-            config, 
-            async (text) => {
-                await pararCameraTotal();
-                inputSearch.value = text.trim();
-                buscar(text.trim());
-            }, 
-            () => {}
-        );
-
-        isScanning = true; 
-        btnScan.innerText = "Parar Câmera"; 
-        btnScan.classList.replace('bg-amber-500', 'bg-rose-600');
-        btnScan.classList.replace('text-slate-950', 'text-white');
-
-    } catch (err) {
-        console.warn("Tentativa com restrições avançadas falhou, tentando modo padrão...", err);
-        
-        try {
-            // Fallback para o modo padrão caso o dispositivo rejeite o focusMode avançado
-            await html5QrCode.start(
-                { facingMode: "environment" }, 
-                config, 
-                async (text) => {
-                    await pararCameraTotal();
-                    inputSearch.value = text.trim();
-                    buscar(text.trim());
-                }, 
-                () => {}
-            );
-            
-            isScanning = true;
-            btnScan.innerText = "Parar Câmera"; 
-            btnScan.classList.replace('bg-amber-500', 'bg-rose-600');
-            btnScan.classList.replace('text-slate-950', 'text-white');
-
-        } catch (innerErr) {
-            console.error("Erro detalhado da câmara:", innerErr);
-            
-            let mensagemErro = "Não foi possível aceder à câmara.";
-            if (innerErr.name === "NotAllowedError" || innerErr.name === "PermissionDeniedError") {
-                mensagemErro = "Permissão negada. Conceda acesso à câmara nas definições do seu navegador.";
-            } else if (innerErr.name === "NotFoundError" || innerErr.name === "DevicesNotFoundError") {
-                mensagemErro = "Nenhuma câmara traseira detetada no dispositivo.";
-            } else if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-                mensagemErro = "Erro: Os navegadores exigem ligação segura (HTTPS) para usar a câmara.";
-            }
-
-            statusAlert.innerText = mensagemErro;
-            statusAlert.className = "p-2 rounded-xl text-xs text-center bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800";
-            statusAlert.classList.remove('hidden');
-            
-            isScanning = false;
-            btnScan.innerText = "Escanear Código";
-            if (readerElement) {
-                readerElement.innerHTML = `<span class="text-xs text-slate-500">Câmera desativada</span>`;
-            }
-        }
-    }
-}
 
       async function pararCameraTotal() {
             if (html5QrCode) {
