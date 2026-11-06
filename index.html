@@ -409,6 +409,7 @@
             let produtosMap = {};
             const termoUpper = termo.toUpperCase();
 
+            // 1. Busca primeiro todos os itens no ESTOQUE (mesmo sem vendas)
             if (regEstoque && regEstoque.data) {
                 for (let k in regEstoque.data) {
                     let item = regEstoque.data[k];
@@ -416,18 +417,35 @@
                     let nome = item.produto ? String(item.produto).trim().toUpperCase() : '';
                     if (!ean || ean === '' || ean === '0') continue;
                     if (ean.includes(termo) || nome.includes(termoUpper)) {
-                        if (!produtosMap[ean]) produtosMap[ean] = { codigo: ean, descricao: item.produto, categoria: item.categoria || 'GERAL', custo: item.custo || 0 };
+                        if (!produtosMap[ean]) {
+                            produtosMap[ean] = { 
+                                codigo: ean, 
+                                descricao: item.produto, 
+                                categoria: item.categoria || 'GERAL', 
+                                custo: item.custo || 0,
+                                precoVendaCadastro: item.preco || item.precoVenda || 0
+                            };
+                        }
                     }
                 }
             }
 
+            // 2. Complementa com produtos das VENDAS (caso existam)
             if (regVendas && regVendas.data) {
                 regVendas.data.forEach(v => {
                     let ean = v.ean ? String(v.ean).trim() : '';
                     let nome = v.produto ? String(v.produto).trim().toUpperCase() : '';
                     if (!ean || ean === '' || ean === '0') return;
                     if (ean.includes(termo) || nome.includes(termoUpper)) {
-                        if (!produtosMap[ean]) produtosMap[ean] = { codigo: ean, descricao: v.produto, categoria: v.categoria || 'GERAL', custo: 0 };
+                        if (!produtosMap[ean]) {
+                            produtosMap[ean] = { 
+                                codigo: ean, 
+                                descricao: v.produto, 
+                                categoria: v.categoria || 'GERAL', 
+                                custo: 0,
+                                precoVendaCadastro: 0
+                            };
+                        }
                     }
                 });
             }
@@ -453,25 +471,28 @@
                 let totalVendidoGeral = 0;
                 let qtdVendidaGeral = 0;
 
-                // Processar Estoque
+                // Processar Estoque por Cliente/Loja
                 if (regEstoque && regEstoque.data) {
                     for (let k in regEstoque.data) {
                         let item = regEstoque.data[k];
                         if (String(item.ean).trim() === info.codigo) {
                             let cliente = (item.cliente || 'Geral').trim();
                             let qtd = Number(item.estoque) || 0;
+                            let precoCad = Number(item.preco || item.precoVenda) || 0;
+
                             if (cliente.toUpperCase().startsWith('CD')) {
                                 cdTotal += qtd;
                             } else {
-                                if (!clientMap[cliente]) clientMap[cliente] = { estoque: 0, preco: 0 };
+                                if (!clientMap[cliente]) clientMap[cliente] = { estoque: 0, preco: precoCad };
                                 clientMap[cliente].estoque += qtd;
+                                if (precoCad > 0) clientMap[cliente].preco = precoCad;
                                 lojaTotalSum += qtd;
                             }
                         }
                     }
                 }
 
-                // Processar Vendas (Preço de Venda global + Métricas de Período)
+                // Processar Vendas no período selecionado
                 if (regVendas && regVendas.data) {
                     regVendas.data.forEach(v => {
                         if (String(v.ean).trim() === info.codigo) {
@@ -531,22 +552,42 @@
                 let todasLojasSet = new Set([...Object.keys(clientMap), ...Object.keys(vendasPorLojaMap)]);
 
                 let detalhesLojaHtml = "";
-                Array.from(todasLojasSet).sort().forEach(loja => {
-                    let dadosLoja = clientMap[loja] || { estoque: 0, preco: 0 };
-                    let estLoja = dadosLoja.estoque || 0;
-                    let prcLoja = dadosLoja.preco > 0 ? dadosLoja.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'Sem registro';
-                    let vendaInfo = vendasPorLojaMap[loja] || { qtdVenda: 0, totalVenda: 0 };
-                    let totStr = vendaInfo.totalVenda.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-                    detalhesLojaHtml += `
+                // Caso o produto esteja apenas cadastrado no estoque geral e sem subdivisão por lojas
+                if (todasLojasSet.size === 0) {
+                    let prcExibicao = info.precoVendaCadastro > 0 
+                        ? Number(info.precoVendaCadastro).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) 
+                        : 'Sem registro';
+
+                    detalhesLojaHtml = `
                         <tr class="border-b border-slate-200 dark:border-slate-900 text-[11px]">
-                            <td class="p-1.5 font-medium text-slate-800 dark:text-slate-200">${loja}</td>
-                            <td class="p-1.5 text-right font-semibold text-emerald-600 dark:text-emerald-400">${prcLoja}</td>
-                            <td class="p-1.5 text-center text-amber-600 dark:text-amber-400 font-semibold">${estLoja}</td>
-                            <td class="p-1.5 text-center text-slate-900 dark:text-white font-bold">${vendaInfo.qtdVenda} un</td>
-                            <td class="p-1.5 text-right text-emerald-600 dark:text-emerald-400 font-medium">${totStr}</td>
+                            <td class="p-1.5 font-medium text-slate-800 dark:text-slate-200">Geral / Estoque Direto</td>
+                            <td class="p-1.5 text-right font-semibold text-emerald-600 dark:text-emerald-400">${prcExibicao}</td>
+                            <td class="p-1.5 text-center text-amber-600 dark:text-amber-400 font-semibold">${estoqueGeralTotal}</td>
+                            <td class="p-1.5 text-center text-slate-900 dark:text-white font-bold">0 un</td>
+                            <td class="p-1.5 text-right text-emerald-600 dark:text-emerald-400 font-medium">R$ 0,00</td>
                         </tr>`;
-                });
+                } else {
+                    Array.from(todasLojasSet).sort().forEach(loja => {
+                        let dadosLoja = clientMap[loja] || { estoque: 0, preco: 0 };
+                        let estLoja = dadosLoja.estoque || 0;
+                        let prcLoja = dadosLoja.preco > 0 
+                            ? dadosLoja.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) 
+                            : (info.precoVendaCadastro > 0 ? Number(info.precoVendaCadastro).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'Sem registro');
+                        
+                        let vendaInfo = vendasPorLojaMap[loja] || { qtdVenda: 0, totalVenda: 0 };
+                        let totStr = vendaInfo.totalVenda.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+                        detalhesLojaHtml += `
+                            <tr class="border-b border-slate-200 dark:border-slate-900 text-[11px]">
+                                <td class="p-1.5 font-medium text-slate-800 dark:text-slate-200">${loja}</td>
+                                <td class="p-1.5 text-right font-semibold text-emerald-600 dark:text-emerald-400">${prcLoja}</td>
+                                <td class="p-1.5 text-center text-amber-600 dark:text-amber-400 font-semibold">${estLoja}</td>
+                                <td class="p-1.5 text-center text-slate-900 dark:text-white font-bold">${vendaInfo.qtdVenda} un</td>
+                                <td class="p-1.5 text-right text-emerald-600 dark:text-emerald-400 font-medium">${totStr}</td>
+                            </tr>`;
+                    });
+                }
 
                 let card = document.createElement('div');
                 card.className = "bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 space-y-3 shadow-xl transition-colors";
@@ -585,7 +626,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    ${detalhesLojaHtml || '<tr><td colspan="5" class="p-3 text-center text-slate-400 dark:text-slate-500">Nenhum dado encontrado</td></tr>'}
+                                    ${detalhesLojaHtml}
                                 </tbody>
                             </table>
                         </div>
