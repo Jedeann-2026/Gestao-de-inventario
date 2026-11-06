@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AB Conveniencia - Consulta - Mobile</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>AB Conveniencia - Compras - Mobile</title>
+    <script src="https://cdn.jsdelivr.net/npm/tailwindcss-cdn@3.4.10/tailwindcss.min.js"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -13,45 +13,13 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <!-- LIB PARA EXPORTAÇÃO EXCEL NATIVA -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
-        #reader { position: relative; }
         #reader video { object-fit: cover !important; border-radius: 0.75rem; }
-        
-        /* Moldura estilo Scanner de Código de Barras */
-        .scanner-laser-box {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80%;
-            height: 120px;
-            border: 2px solid rgba(245, 158, 11, 0.8); /* Borda Âmbar */
-            border-radius: 12px;
-            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45); /* Escurece fora da caixa */
-            pointer-events: none;
-            z-index: 10;
-        }
-
-        /* Linha laser vermelha centralizada no meio */
-        .scanner-laser-line {
-            position: absolute;
-            top: 50%;
-            left: 5%;
-            width: 90%;
-            height: 2px;
-            background-color: #ef4444; /* Vermelho vibrante */
-            box-shadow: 0 0 8px #ef4444;
-            transform: translateY(-50%);
-            animation: pulseLaser 1.5s infinite ease-in-out;
-        }
-
-        @keyframes pulseLaser {
-            0%, 100% { opacity: 0.4; }
-            50% { opacity: 1; }
-        }
     </style>
 </head>
-<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col font-sans p-4 transition-colors duration-200">
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col font-sans p-4 pb-48 transition-colors duration-200">
 
     <!-- TELA DE LOGIN / AUTENTICAÇÃO -->
     <div id="modal-login" class="fixed inset-0 bg-slate-950/90 flex items-center justify-center p-4 z-50">
@@ -60,7 +28,7 @@
                 <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 text-xl mb-1">
                     <i class="fa-solid fa-lock"></i>
                 </div>
-                <h2 class="text-base font-bold text-slate-900 dark:text-white">AB Conveniência - Consulta</h2>
+                <h2 class="text-base font-bold text-slate-900 dark:text-white">AB Conveniência - Acesso</h2>
                 <p class="text-xs text-slate-500 dark:text-slate-400">Selecione seu perfil e digite a senha para entrar</p>
             </div>
 
@@ -87,14 +55,14 @@
         </div>
     </div>
 
-    <!-- CONTEÚDO PRINCIPAL DA CONSULTA -->
+    <!-- CONTEÚDO PRINCIPAL DO APLICATIVO -->
     <div id="app-container" class="max-w-md w-full mx-auto space-y-4">
         <!-- HEADER / SCANNER -->
         <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-xl transition-colors">
             <div class="flex justify-between items-center mb-3">
                 <div>
                     <h1 class="text-base font-bold text-amber-600 dark:text-amber-400 flex items-center gap-2">
-                        <i class="fa-solid fa-barcode"></i> AB Conveniencia Consulta
+                        <i class="fa-solid fa-file-invoice-dollar"></i> AB Conveniencia
                     </h1>
                     <span id="label-usuario-logado" class="text-[10px] text-slate-400 dark:text-slate-500 block">Usuário: -</span>
                 </div>
@@ -109,7 +77,7 @@
                     </button>
                 </div>
             </div>
-
+            
             <div id="reader" class="w-full bg-slate-200 dark:bg-black rounded-xl overflow-hidden min-h-[200px] flex items-center justify-center mb-3 border border-slate-300 dark:border-slate-800">
                 <span class="text-xs text-slate-500 dark:text-slate-500">Câmera desativada</span>
             </div>
@@ -139,8 +107,113 @@
             </div>
         </div>
 
-        <div id="status-alert" class="p-2 rounded-xl text-xs text-center bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 border border-slate-200 dark:border-slate-800">Carregando dados na memória...</div>
+        <div id="status-alert" class="hidden p-2 rounded-xl text-xs text-center"></div>
+
+        <!-- PAINEL DE PEDIDOS PENDENTES (RASCUNHOS) -->
+        <div id="container-pendentes" class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 space-y-3 shadow-xl transition-colors">
+            <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-2">
+                <h2 class="font-bold text-amber-600 dark:text-amber-400 text-xs flex items-center gap-1.5 uppercase tracking-wider">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Pedidos Pendentes / Rascunhos
+                </h2>
+                <button onclick="novoPedidoRascunho()" class="text-[11px] bg-slate-100 dark:bg-slate-800 text-amber-600 dark:text-amber-400 px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700">
+                    <i class="fa-solid fa-plus mr-1"></i>Novo Rascunho
+                </button>
+            </div>
+            <div id="lista-pendentes" class="space-y-2 max-h-40 overflow-y-auto pr-1">
+                <p class="text-[11px] text-slate-400 dark:text-slate-500 text-center py-2">Nenhum rascunho pendente.</p>
+            </div>
+        </div>
+
+        <!-- RESULTADOS DA BUSCA -->
         <div id="results-container" class="space-y-4"></div>
+
+        <!-- LISTA DE ITENS DO PEDIDO EM ANDAMENTO -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 space-y-3 shadow-xl transition-colors">
+            <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-2">
+                <div class="flex items-center gap-2">
+                    <h2 class="font-bold text-amber-600 dark:text-amber-400 text-sm flex items-center gap-1.5">
+                        <i class="fa-solid fa-cart-flatbed"></i> Pedido em Edição
+                    </h2>
+                    <span id="num-pedido-badge" class="bg-slate-100 dark:bg-slate-800 text-amber-600 dark:text-amber-400 text-[10px] font-mono px-2 py-0.5 rounded-full border border-slate-300 dark:border-slate-700">#0001</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="exportarPedidoExcel()" class="text-[11px] text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 dark:hover:text-emerald-300 transition flex items-center gap-1 font-semibold">
+                        <i class="fa-solid fa-file-excel"></i>Exportar
+                    </button>
+                    <button onclick="limparPedido()" class="text-[11px] text-rose-600 dark:text-rose-400 hover:text-rose-500 dark:hover:text-rose-300 transition">
+                        <i class="fa-solid fa-trash-can mr-1"></i>Limpar
+                    </button>
+                </div>
+            </div>
+
+            <!-- CAMPO DE FORNECEDOR -->
+            <div>
+                <label class="text-[10px] text-slate-500 dark:text-slate-400 block mb-1">Fornecedor / Distribuidor</label>
+                <input type="text" id="input-fornecedor" oninput="salvarEstadoPedidoAtual()" placeholder="Ex: Distribuidora São Paulo" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-400">
+            </div>
+            
+            <div id="lista-pedido" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+                <p class="text-xs text-slate-400 dark:text-slate-500 text-center py-4">Nenhum item adicionado ao pedido.</p>
+            </div>
+
+            <!-- RESUMO DE TOTAL GERAL DA NOTA -->
+            <div class="bg-slate-50 dark:bg-slate-950 rounded-xl p-3 border border-slate-200 dark:border-slate-800 flex justify-between items-center text-xs">
+                <span class="text-slate-500 dark:text-slate-400">Total do Pedido:</span>
+                <span id="total-geral-pedido" class="text-base font-bold text-emerald-600 dark:text-emerald-400">R$ 0,00</span>
+            </div>
+
+            <!-- BOTÃO DE FINALIZAÇÃO CONDICIONAL POR PERMISSÃO -->
+            <div class="grid grid-cols-1 gap-2">
+                <button id="btn-finalizar-nota" onclick="finalizarPedidoEntrada()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-xs transition shadow-lg">
+                    <i class="fa-solid fa-circle-check mr-1"></i> Finalizar Nota de Entrada
+                </button>
+                <div id="aviso-convidado-gravar" class="hidden w-full bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-semibold py-3 rounded-xl text-xs text-center border border-slate-300 dark:border-slate-700">
+                    <i class="fa-solid fa-lock mr-1"></i> Perfil Convidado (Modo Leitura / Sem Gravação)
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE CADASTRO DE NOVO PRODUTO -->
+    <div id="modal-cadastro" class="fixed inset-0 bg-black/60 dark:bg-black/80 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 w-full max-w-md space-y-4 shadow-2xl transition-colors">
+            <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
+                <h3 class="text-amber-600 dark:text-amber-400 font-bold text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-box-open"></i> Cadastrar Novo Produto
+                </h3>
+                <button type="button" id="btn-fechar-modal" class="text-slate-400 hover:text-slate-600 dark:hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form id="form-cadastrar-produto" class="space-y-3">
+                <div>
+                    <label class="text-[11px] text-slate-500 dark:text-slate-400 block mb-1">Código EAN</label>
+                    <input type="text" id="cad-ean" required class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-amber-600 dark:text-amber-400 font-mono focus:outline-none focus:border-amber-400">
+                </div>
+                <div>
+                    <label class="text-[11px] text-slate-500 dark:text-slate-400 block mb-1">Descrição / Nome do Produto</label>
+                    <input type="text" id="cad-descricao" required placeholder="Ex: Biscoito Recheado 130g" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-400">
+                </div>
+                <div>
+                    <label class="text-[11px] text-slate-500 dark:text-slate-400 block mb-1">Categoria (Existente na Base)</label>
+                    <select id="cad-categoria" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-400">
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-2 pt-2">
+                    <div>
+                        <label class="text-[11px] text-slate-500 dark:text-slate-400 block mb-1">Qtd Comprada</label>
+                        <input type="number" id="cad-qtd" min="1" value="1" required class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-400">
+                    </div>
+                    <div>
+                        <label class="text-[11px] text-slate-500 dark:text-slate-400 block mb-1">Preço de Custo (R$)</label>
+                        <input type="number" step="0.01" id="cad-custo" min="0" placeholder="0.00" required class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-400">
+                    </div>
+                </div>
+                <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-3 rounded-xl text-xs transition mt-2">
+                    Salvar e Adicionar ao Pedido
+                </button>
+            </form>
+        </div>
     </div>
 
     <script>
@@ -158,6 +231,10 @@
         let html5QrCode = null, isScanning = false;
         let regEstoque = null, regVendas = null, regEntradasBase = null;
         let isDataLoaded = false;
+        let categoriasEncontradas = new Set();
+        let itensPedido = [];
+        let rascunhos = JSON.parse(localStorage.getItem('nexxa_rascunhos_pedidos') || '{}');
+        let numeroPedidoAtual = Number(localStorage.getItem('nexxa_num_pedido') || 1);
         let ultimoTermoPesquisado = '';
         let usuarioLogado = localStorage.getItem('nexxa_usuario_logado') || null;
 
@@ -171,7 +248,10 @@
         const resultsContainer = document.getElementById('results-container');
         const statusAlert = document.getElementById('status-alert');
 
-        // FUNÇÃO DE LOGIN E CONTROLE DE SESSÃO
+        const modalCadastro = document.getElementById('modal-cadastro');
+        const btnFecharModal = document.getElementById('btn-fechar-modal');
+        const formCadastrarProduto = document.getElementById('form-cadastrar-produto');
+
         function fazerLogin(e) {
             e.preventDefault();
             const usuario = document.getElementById('login-usuario').value;
@@ -187,7 +267,7 @@
             localStorage.setItem('nexxa_usuario_logado', usuario);
             modalLogin.classList.add('hidden');
             
-            atualizarLabelUsuario();
+            aplicarPermissoesUsuario();
         }
 
         function fazerLogout() {
@@ -201,26 +281,34 @@
             }
         }
 
-        function atualizarLabelUsuario() {
+        function aplicarPermissoesUsuario() {
+            const btnFinalizar = document.getElementById('btn-finalizar-nota');
+            const avisoConvidado = document.getElementById('aviso-convidado-gravar');
             const labelUsuario = document.getElementById('label-usuario-logado');
+
             if (labelUsuario) labelUsuario.innerText = `Usuário: ${usuarioLogado}`;
+
+            if (usuarioLogado === 'Convidado') {
+                btnFinalizar.classList.add('hidden');
+                avisoConvidado.classList.remove('hidden');
+            } else {
+                btnFinalizar.classList.remove('hidden');
+                avisoConvidado.classList.add('hidden');
+            }
         }
 
-        // CONFIGURAÇÃO DOS ÚLTIMOS 7 DIAS (TIRANDO O DIA ATUAL)
         function inicializarFiltroDatas() {
             const hoje = new Date();
-            
             const dataFim = new Date(hoje);
-            dataFim.setDate(hoje.getDate() - 1); // Ontem
+            dataFim.setDate(hoje.getDate() - 1);
             
             const dataInicio = new Date(dataFim);
-            dataInicio.setDate(dataFim.getDate() - 6); // 7 dias atrás
+            dataInicio.setDate(dataFim.getDate() - 6);
 
             filtroInicio.value = dataInicio.toISOString().split('T')[0];
             filtroFim.value = dataFim.toISOString().split('T')[0];
         }
 
-        // CONTROLE DE TEMA (CLARO / ESCURO)
         function inicializarTema() {
             const temaSalvo = localStorage.getItem('nexxa_tema');
             if (temaSalvo === 'dark' || (!temaSalvo && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -270,16 +358,122 @@
                 modalLogin.classList.remove('hidden');
             } else {
                 modalLogin.classList.add('hidden');
-                atualizarLabelUsuario();
+                aplicarPermissoesUsuario();
             }
 
             carregarDadosMemoria();
+            numeroPedidoAtual = obterProximoNumeroLivre();
+            carregarPedidoAtual();
+            atualizarListaPendentes();
         });
 
         function dispararBuscaRecorrente() {
             if (ultimoTermoPesquisado) {
                 buscar(ultimoTermoPesquisado, false);
             }
+        }
+
+        function obterProximoNumeroLivre() {
+            let prox = Number(localStorage.getItem('nexxa_num_pedido') || 1);
+            while (rascunhos[String(prox)]) {
+                prox++;
+            }
+            return prox;
+        }
+
+        function atualizarNumeroPedidoBadge() {
+            const badge = document.getElementById('num-pedido-badge');
+            if (badge) badge.innerText = '#' + String(numeroPedidoAtual).padStart(4, '0');
+        }
+
+        function salvarEstadoPedidoAtual() {
+            const fornecedor = document.getElementById('input-fornecedor').value;
+            const numKey = String(numeroPedidoAtual);
+
+            if (itensPedido.length > 0 || fornecedor.trim() !== '') {
+                rascunhos[numKey] = {
+                    numero: numeroPedidoAtual,
+                    fornecedor: fornecedor,
+                    itens: itensPedido,
+                    dataAtualizacao: new Date().toISOString()
+                };
+            } else {
+                delete rascunhos[numKey];
+            }
+
+            localStorage.setItem('nexxa_rascunhos_pedidos', JSON.stringify(rascunhos));
+            atualizarListaPendentes();
+        }
+
+        function carregarPedidoAtual() {
+            atualizarNumeroPedidoBadge();
+            const numKey = String(numeroPedidoAtual);
+            if (rascunhos[numKey]) {
+                document.getElementById('input-fornecedor').value = rascunhos[numKey].fornecedor || '';
+                itensPedido = rascunhos[numKey].itens || [];
+            } else {
+                document.getElementById('input-fornecedor').value = '';
+                itensPedido = [];
+            }
+            atualizarInterfacePedido();
+        }
+
+        function selecionarRascunho(num) {
+            numeroPedidoAtual = Number(num);
+            carregarPedidoAtual();
+        }
+
+        function novoPedidoRascunho() {
+            numeroPedidoAtual = obterProximoNumeroLivre();
+            carregarPedidoAtual();
+        }
+
+        function excluirRascunho(num, e) {
+            e.stopPropagation();
+            if (confirm(`Deseja excluir o rascunho de pedido #${String(num).padStart(4, '0')}?`)) {
+                delete rascunhos[String(num)];
+                localStorage.setItem('nexxa_rascunhos_pedidos', JSON.stringify(rascunhos));
+                if (numeroPedidoAtual === Number(num)) {
+                    carregarPedidoAtual();
+                } else {
+                    atualizarListaPendentes();
+                }
+            }
+        }
+
+        function atualizarListaPendentes() {
+            const container = document.getElementById('lista-pendentes');
+            const chaves = Object.keys(rascunhos);
+
+            if (chaves.length === 0) {
+                container.innerHTML = `<p class="text-[11px] text-slate-400 dark:text-slate-500 text-center py-2">Nenhum rascunho pendente.</p>`;
+                return;
+            }
+
+            container.innerHTML = "";
+            chaves.sort((a,b) => Number(b) - Number(a)).forEach(key => {
+                const r = rascunhos[key];
+                const isAtual = Number(key) === numeroPedidoAtual;
+                const totalItens = (r.itens || []).reduce((acc, i) => acc + i.qtd, 0);
+
+                let div = document.createElement('div');
+                div.onclick = () => selecionarRascunho(key);
+                div.className = `flex justify-between items-center p-2 rounded-xl text-xs cursor-pointer border transition ${isAtual ? 'bg-amber-50 dark:bg-slate-800 border-amber-500 text-amber-600 dark:text-amber-400' : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700'}`;
+                
+                div.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="font-mono font-bold">#${String(r.numero).padStart(4, '0')}</span>
+                        <span class="truncate max-w-[120px] text-slate-500 dark:text-slate-400">${r.fornecedor || 'Sem Fornecedor'}</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-[10px] bg-white dark:bg-slate-900 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400">${totalItens} itens</span>
+                        <button onclick="excluirRascunho('${key}', event)" class="text-slate-400 hover:text-rose-500 p-1">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
         }
 
         function obterUltimoPrecoCompra(eanAlvo) {
@@ -306,7 +500,56 @@
             return ultimoPreco;
         }
 
-        // BOTÃO DE LIGA/DESLIGA DA CÂMARA COM MIRA LASER (OTIMIZADO)
+        function exportarPedidoExcel() {
+            if (itensPedido.length === 0) {
+                alert("Não existem itens no pedido para exportar.");
+                return;
+            }
+
+            const fornecedor = document.getElementById('input-fornecedor').value.trim() || 'Não informado';
+            const numPedidoFormatted = String(numeroPedidoAtual).padStart(4, '0');
+
+            let dadosExcel = [];
+            dadosExcel.push(["PEDIDO DE COMPRAS", `#${numPedidoFormatted}`]);
+            dadosExcel.push(["USUÁRIO EMISSOR", usuarioLogado]);
+            dadosExcel.push(["FORNECEDOR", fornecedor]);
+            dadosExcel.push(["DATA EXPORTAÇÃO", new Date().toLocaleDateString('pt-BR')]);
+            dadosExcel.push([]);
+            dadosExcel.push(["EAN", "Descrição do Produto", "Categoria", "Qtd Comprada", "Preço Custo (R$)", "Subtotal (R$)"]);
+
+            let totalGeral = 0;
+            itensPedido.forEach(item => {
+                totalGeral += item.subtotal;
+                dadosExcel.push([
+                    item.codigo,
+                    item.descricao,
+                    item.categoria || 'GERAL',
+                    item.qtd,
+                    item.custo,
+                    item.subtotal
+                ]);
+            });
+
+            dadosExcel.push([]);
+            dadosExcel.push(["", "", "", "", "TOTAL GERAL:", totalGeral]);
+
+            const worksheet = XLSX.utils.aoa_to_sheet(dadosExcel);
+            worksheet['!cols'] = [
+                { wch: 16 },
+                { wch: 35 },
+                { wch: 18 },
+                { wch: 14 },
+                { wch: 18 },
+                { wch: 18 }
+            ];
+
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, `Pedido #${numPedidoFormatted}`);
+
+            const nomeArquivo = `Pedido_Compras_${numPedidoFormatted}_${fornecedor.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`;
+            XLSX.writeFile(workbook, nomeArquivo);
+        }
+
         btnScan.addEventListener('click', async () => {
             if (isScanning) {
                 await pararCameraTotal();
@@ -361,7 +604,6 @@
             }
         }
 
-
         async function pararCameraTotal() {
             if (html5QrCode) {
                 try {
@@ -380,7 +622,7 @@
             btnScan.classList.replace('text-white', 'text-slate-950');
             
             const readerElement = document.getElementById('reader');
-            if (readerElement) {
+            if (readerElement && !readerElement.querySelector('video')) {
                 readerElement.innerHTML = `<span class="text-xs text-slate-500">Câmera desativada</span>`;
             }
         }
@@ -389,6 +631,10 @@
             e.preventDefault();
             const termo = inputSearch.value.trim();
             if (termo) buscar(termo);
+        });
+
+        btnFecharModal.addEventListener('click', () => {
+            modalCadastro.classList.add('hidden');
         });
 
         function buscar(termo, exibirAlerta = true) {
@@ -407,43 +653,50 @@
             }
 
             let produtosMap = {};
+            categoriasEncontradas.clear();
             const termoUpper = termo.toUpperCase();
 
-            // 1. Busca primeiro todos os itens no ESTOQUE (mesmo sem vendas)
+            // 1. PRIMEIRO: Mapeia TODOS os registros de estoque que correspondem ao termo buscado
             if (regEstoque && regEstoque.data) {
                 for (let k in regEstoque.data) {
                     let item = regEstoque.data[k];
                     let ean = item.ean ? String(item.ean).trim() : '';
                     let nome = item.produto ? String(item.produto).trim().toUpperCase() : '';
+
+                    if (item.categoria) categoriasEncontradas.add(item.categoria);
                     if (!ean || ean === '' || ean === '0') continue;
+
                     if (ean.includes(termo) || nome.includes(termoUpper)) {
-                        if (!produtosMap[ean]) {
-                            produtosMap[ean] = { 
+                        let key = ean;
+                        if (!produtosMap[key]) {
+                            produtosMap[key] = { 
                                 codigo: ean, 
                                 descricao: item.produto, 
                                 categoria: item.categoria || 'GERAL', 
-                                custo: item.custo || 0,
-                                precoVendaCadastro: item.preco || item.precoVenda || 0
+                                custo: item.custo || 0 
                             };
                         }
                     }
                 }
             }
 
-            // 2. Complementa com produtos das VENDAS (caso existam)
+            // 2. SEGUNDO: Inclui também produtos que possam existir apenas em vendas (garantindo robustez caso não estejam no estoque)
             if (regVendas && regVendas.data) {
                 regVendas.data.forEach(v => {
                     let ean = v.ean ? String(v.ean).trim() : '';
                     let nome = v.produto ? String(v.produto).trim().toUpperCase() : '';
+
+                    if (v.categoria) categoriasEncontradas.add(v.categoria);
                     if (!ean || ean === '' || ean === '0') return;
+
                     if (ean.includes(termo) || nome.includes(termoUpper)) {
-                        if (!produtosMap[ean]) {
-                            produtosMap[ean] = { 
+                        let key = ean;
+                        if (!produtosMap[key]) {
+                            produtosMap[key] = { 
                                 codigo: ean, 
                                 descricao: v.produto, 
                                 categoria: v.categoria || 'GERAL', 
-                                custo: 0,
-                                precoVendaCadastro: 0
+                                custo: 0 
                             };
                         }
                     }
@@ -452,10 +705,9 @@
 
             const lista = Object.values(produtosMap);
             if (lista.length === 0) {
-                statusAlert.innerText = "Nenhum produto encontrado.";
-                statusAlert.className = "p-2 rounded-xl text-xs text-center bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800";
-                statusAlert.classList.remove('hidden');
+                statusAlert.classList.add('hidden');
                 resultsContainer.innerHTML = "";
+                if (exibirAlerta) abrirModalCadastro(termo);
                 return;
             }
 
@@ -471,40 +723,38 @@
                 let totalVendidoGeral = 0;
                 let qtdVendidaGeral = 0;
 
-                // Processar Estoque por Cliente/Loja
                 if (regEstoque && regEstoque.data) {
                     for (let k in regEstoque.data) {
                         let item = regEstoque.data[k];
-                        if (String(item.ean).trim() === info.codigo) {
+                        let itemEan = item.ean ? String(item.ean).trim() : '';
+                        if (itemEan === info.codigo) {
                             let cliente = (item.cliente || 'Geral').trim();
                             let qtd = Number(item.estoque) || 0;
-                            let precoCad = Number(item.preco || item.precoVenda) || 0;
 
                             if (cliente.toUpperCase().startsWith('CD')) {
                                 cdTotal += qtd;
                             } else {
-                                if (!clientMap[cliente]) clientMap[cliente] = { estoque: 0, preco: precoCad };
+                                if (!clientMap[cliente]) clientMap[cliente] = { estoque: 0, preco: 0 };
                                 clientMap[cliente].estoque += qtd;
-                                if (precoCad > 0) clientMap[cliente].preco = precoCad;
                                 lojaTotalSum += qtd;
                             }
                         }
                     }
                 }
 
-                // Processar Vendas no período selecionado
                 if (regVendas && regVendas.data) {
                     regVendas.data.forEach(v => {
-                        if (String(v.ean).trim() === info.codigo) {
-                            let loja = (v.cliente || v.loja || 'Geral').trim();
-                            let preco = parseFloat(v.vlrUnit || v.valorUnitario || 0);
+                        let vEan = v.ean ? String(v.ean).trim() : '';
+                        if (vEan === info.codigo) {
+                            let cliente = (v.cliente || v.loja || 'Geral').trim();
+                            let preco = parseFloat(v.vlrUnit || 0);
                             let qtdV = Number(v.qtd || v.quantidade || 1);
 
-                            if (!clientMap[loja]) {
-                                clientMap[loja] = { estoque: 0, preco: 0 };
+                            if (!clientMap[cliente]) {
+                                clientMap[cliente] = { estoque: 0, preco: 0 };
                             }
                             if (preco > 0) {
-                                clientMap[loja].preco = preco;
+                                clientMap[cliente].preco = preco;
                             }
 
                             let dataVendaStr = v.data || v.dataVenda || v.created_at || '';
@@ -528,63 +778,62 @@
                                 totalVendidoGeral += totalLinha;
                                 qtdVendidaGeral += qtdV;
 
-                                if (!vendasPorLojaMap[loja]) {
-                                    vendasPorLojaMap[loja] = { qtdVenda: 0, totalVenda: 0 };
+                                if (!vendasPorLojaMap[cliente]) {
+                                    vendasPorLojaMap[cliente] = { qtdVenda: 0 };
                                 }
-                                vendasPorLojaMap[loja].qtdVenda += qtdV;
-                                vendasPorLojaMap[loja].totalVenda += totalLinha;
+                                vendasPorLojaMap[cliente].qtdVenda += qtdV;
                             }
                         }
                     });
                 }
 
                 let estoqueGeralTotal = lojaTotalSum + cdTotal;
-                let ultimoPrecoCompra = obterUltimoPrecoCompra(info.codigo);
+                
+                let sugestaoCompras = qtdVendidaGeral - estoqueGeralTotal;
+                let sugestaoHtml = sugestaoCompras > 0 ? `
+                    <div class="flex justify-between font-mono text-amber-600 dark:text-amber-400 pt-1 border-t border-emerald-200 dark:border-emerald-900/40">
+                        <span>Sugestão de Compras:</span>
+                        <strong>+${sugestaoCompras} un</strong>
+                    </div>
+                ` : '';
 
-                let me_custo = ultimoPrecoCompra > 0 ? ultimoPrecoCompra : (info.custo || 0);
+                let ultimoPrecoCompra = obterUltimoPrecoCompra(info.codigo);
                 let ultimoPrecoHtml = `
-                    <div class="flex justify-between font-mono text-cyan-600 dark:text-cyan-400 pt-1 border-t border-emerald-200 dark:border-emerald-900/40 text-xs">
+                    <div class="flex justify-between font-mono text-cyan-600 dark:text-cyan-400 pt-1 border-t border-emerald-200 dark:border-emerald-900/40">
                         <span>Último Preço Custo:</span>
-                        <strong>${Number(me_custo).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong>
+                        <strong>${Number(ultimoPrecoCompra).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong>
                     </div>
                 `;
+
+                let custoSugerido = ultimoPrecoCompra > 0 ? ultimoPrecoCompra : (info.custo || '');
 
                 let todasLojasSet = new Set([...Object.keys(clientMap), ...Object.keys(vendasPorLojaMap)]);
 
                 let detalhesLojaHtml = "";
-
-                // Caso o produto esteja apenas cadastrado no estoque geral e sem subdivisão por lojas
+                
+                // CORREÇÃO: Garante que mesmo se não houver vendas ou registros específicos por loja, 
+                // os estoques cadastrados (ou linhas vazias informativas) apareçam corretamente.
                 if (todasLojasSet.size === 0) {
-                    let prcExibicao = info.precoVendaCadastro > 0 
-                        ? Number(info.precoVendaCadastro).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) 
-                        : 'Sem registro';
-
                     detalhesLojaHtml = `
                         <tr class="border-b border-slate-200 dark:border-slate-900 text-[11px]">
                             <td class="p-1.5 font-medium text-slate-800 dark:text-slate-200">Geral / Estoque Direto</td>
-                            <td class="p-1.5 text-right font-semibold text-emerald-600 dark:text-emerald-400">${prcExibicao}</td>
+                            <td class="p-1.5 text-right font-semibold text-emerald-600 dark:text-emerald-400">Sem registro</td>
                             <td class="p-1.5 text-center text-amber-600 dark:text-amber-400 font-semibold">${estoqueGeralTotal}</td>
                             <td class="p-1.5 text-center text-slate-900 dark:text-white font-bold">0 un</td>
-                            <td class="p-1.5 text-right text-emerald-600 dark:text-emerald-400 font-medium">R$ 0,00</td>
                         </tr>`;
                 } else {
                     Array.from(todasLojasSet).sort().forEach(loja => {
                         let dadosLoja = clientMap[loja] || { estoque: 0, preco: 0 };
                         let estLoja = dadosLoja.estoque || 0;
-                        let prcLoja = dadosLoja.preco > 0 
-                            ? dadosLoja.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) 
-                            : (info.precoVendaCadastro > 0 ? Number(info.precoVendaCadastro).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'Sem registro');
-                        
-                        let vendaInfo = vendasPorLojaMap[loja] || { qtdVenda: 0, totalVenda: 0 };
-                        let totStr = vendaInfo.totalVenda.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                        let prcLoja = dadosLoja.preco > 0 ? dadosLoja.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'Sem registro';
+                        let vendaLoja = vendasPorLojaMap[loja] ? vendasPorLojaMap[loja].qtdVenda : 0;
 
                         detalhesLojaHtml += `
                             <tr class="border-b border-slate-200 dark:border-slate-900 text-[11px]">
                                 <td class="p-1.5 font-medium text-slate-800 dark:text-slate-200">${loja}</td>
                                 <td class="p-1.5 text-right font-semibold text-emerald-600 dark:text-emerald-400">${prcLoja}</td>
                                 <td class="p-1.5 text-center text-amber-600 dark:text-amber-400 font-semibold">${estLoja}</td>
-                                <td class="p-1.5 text-center text-slate-900 dark:text-white font-bold">${vendaInfo.qtdVenda} un</td>
-                                <td class="p-1.5 text-right text-emerald-600 dark:text-emerald-400 font-medium">${totStr}</td>
+                                <td class="p-1.5 text-center text-slate-900 dark:text-white font-bold">${vendaLoja} un</td>
                             </tr>`;
                     });
                 }
@@ -594,35 +843,32 @@
                 card.innerHTML = `
                     <h2 class="font-bold text-slate-900 dark:text-white text-sm">${info.descricao}</h2>
                     <div class="text-[10px] text-amber-600 dark:text-amber-400">EAN: ${info.codigo} | Cat: ${info.categoria}</div>
-                    
                     <div class="text-[11px] bg-slate-50 dark:bg-slate-950 p-2 rounded-xl border border-slate-200 dark:border-slate-800 flex justify-around text-slate-600 dark:text-slate-300 font-mono">
                         <span>Estq. Loja: <strong class="text-slate-900 dark:text-white">${lojaTotalSum}</strong></span>
                         <span>Estq. CD: <strong class="text-blue-600 dark:text-blue-400">${cdTotal}</strong></span>
                         <span>Total: <strong class="text-amber-600 dark:text-amber-400">${estoqueGeralTotal}</strong></span>
                     </div>
 
-                    <!-- Totalizador de Vendas e Preço de Custo no Período -->
                     <div class="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 p-2.5 rounded-xl text-xs space-y-1">
                         <div class="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold uppercase"><i class="fa-solid fa-chart-pie mr-1"></i> Resumo de Vendas (Período)</div>
                         <div class="flex justify-between font-mono">
                             <span>Qtd Vendida: <strong class="text-slate-900 dark:text-white">${qtdVendidaGeral} un</strong></span>
                             <span>Total Faturado: <strong class="text-emerald-600 dark:text-emerald-400">${totalVendidoGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong></span>
                         </div>
+                        ${sugestaoHtml}
                         ${ultimoPrecoHtml}
                     </div>
 
-                    <!-- Detalhado por Loja (Preço, Estoque e Vendas) -->
                     <div class="space-y-1">
                         <div class="text-[11px] font-semibold text-slate-700 dark:text-slate-300"><i class="fa-solid fa-store mr-1"></i> Detalhes por Loja</div>
                         <div class="max-h-44 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-950">
                             <table class="w-full text-xs text-left">
                                 <thead class="text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/50 sticky top-0">
                                     <tr>
-                                        <th class="p-1.5 text-[10px]">Loja</th>
+                                        <th class="p-1.5 text-[10px]">Loja/Filial</th>
                                         <th class="p-1.5 text-[10px] text-right">Preço Venda</th>
-                                        <th class="p-1.5 text-[10px] text-center">Estq.</th>
-                                        <th class="p-1.5 text-[10px] text-center">Vendas</th>
-                                        <th class="p-1.5 text-[10px] text-right">Faturado</th>
+                                        <th class="p-1.5 text-[10px] text-center">Estq. Loja</th>
+                                        <th class="p-1.5 text-[10px] text-center">Qtd Vendida</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -631,9 +877,339 @@
                             </table>
                         </div>
                     </div>
+                    
+                    <div class="pt-2 border-t border-slate-200 dark:border-slate-800/80 space-y-2">
+                        <span class="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider block"><i class="fa-solid fa-cart-plus mr-1"></i> Compras / Nota de Entrada</span>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="text-[10px] text-slate-500 dark:text-slate-400 block mb-1">Qtd Comprada</label>
+                                <input type="number" id="qtd-entrada-${info.codigo}" min="1" placeholder="0" oninput="calcularTotalLinha('${info.codigo}')" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-400">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-slate-500 dark:text-slate-400 block mb-1">Preço Custo (R$)</label>
+                                <input type="number" step="0.01" id="custo-entrada-${info.codigo}" placeholder="0.00" value="${custoSugerido}" oninput="calcularTotalLinha('${info.codigo}')" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-400">
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-950 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
+                            <span class="text-slate-500 dark:text-slate-400">Total desta linha:</span>
+                            <span id="total-linha-${info.codigo}" class="font-mono font-bold text-amber-600 dark:text-amber-400">R$ 0,00</span>
+                        </div>
+
+                        <button onclick="adicionarAoPedido('${info.codigo}', '${info.descricao.replace(/'/g, "\\'")}', '${info.categoria}')" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2 rounded-xl text-xs transition">
+                            Adicionar ao Pedido
+                        </button>
+                    </div>
                 `;
                 resultsContainer.appendChild(card);
             });
+        }
+
+        function calcularTotalLinha(codigoEan) {
+            const qtd = parseFloat(document.getElementById(`qtd-entrada-${codigoEan}`).value) || 0;
+            const custo = parseFloat(document.getElementById(`custo-entrada-${codigoEan}`).value) || 0;
+            const subtotal = qtd * custo;
+            document.getElementById(`total-linha-${codigoEan}`).innerText = subtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+
+        function adicionarNovoProdutoAoPedido(codigo, descricao, categoria, qtd, custo) {
+            const subtotal = qtd * custo;
+            const indexExistente = itensPedido.findIndex(i => i.codigo === codigo);
+
+            if (indexExistente >= 0) {
+                itensPedido[indexExistente].qtd += qtd;
+                itensPedido[indexExistente].custo = custo;
+                itensPedido[indexExistente].subtotal = itensPedido[indexExistente].qtd * custo;
+            } else {
+                itensPedido.push({ codigo, descricao, categoria, qtd, custo, subtotal });
+            }
+
+            salvarEstadoPedidoAtual();
+            atualizarInterfacePedido();
+        }
+
+        function adicionarAoPedido(codigo, descricao, categoria) {
+            const inputQtd = document.getElementById(`qtd-entrada-${codigo}`);
+            const inputCusto = document.getElementById(`custo-entrada-${codigo}`);
+
+            const qtd = Number(inputQtd.value);
+            const custo = parseFloat(inputCusto.value);
+
+            if (!qtd || qtd <= 0) {
+                alert("Informe uma quantidade válida.");
+                return;
+            }
+            if (isNaN(custo) || custo < 0) {
+                alert("Informe um preço de custo válido.");
+                return;
+            }
+
+            adicionarNovoProdutoAoPedido(codigo, descricao, categoria, qtd, custo);
+
+            inputQtd.value = '';
+            document.getElementById(`total-linha-${codigo}`).innerText = "R$ 0,00";
+        }
+
+        function removerDoPedido(codigo) {
+            itensPedido = itensPedido.filter(i => i.codigo !== codigo);
+            salvarEstadoPedidoAtual();
+            atualizarInterfacePedido();
+        }
+
+        function limparPedido() {
+            if (itensPedido.length === 0 && !document.getElementById('input-fornecedor').value) return;
+            if (confirm("Deseja realmente limpar todos os itens do pedido em edição?")) {
+                itensPedido = [];
+                document.getElementById('input-fornecedor').value = '';
+                salvarEstadoPedidoAtual();
+                atualizarInterfacePedido();
+            }
+        }
+
+        function atualizarInterfacePedido() {
+            const container = document.getElementById('lista-pedido');
+            const totalElement = document.getElementById('total-geral-pedido');
+
+            if (itensPedido.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 dark:text-slate-500 text-center py-4">Nenhum item adicionado ao pedido.</p>`;
+                totalElement.innerText = "R$ 0,00";
+                return;
+            }
+
+            container.innerHTML = "";
+            let totalGeral = 0;
+
+            itensPedido.forEach(item => {
+                totalGeral += item.subtotal;
+                let div = document.createElement('div');
+                div.className = "flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs transition-colors";
+                div.innerHTML = `
+                    <div class="flex-1 pr-2">
+                        <div class="font-bold text-slate-900 dark:text-white truncate max-w-[190px]">${item.descricao}</div>
+                        <div class="text-[10px] text-slate-500 dark:text-slate-400">
+                            EAN: ${item.codigo} | ${item.qtd}x ${item.custo.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="font-mono font-bold text-amber-600 dark:text-amber-400">${item.subtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        <button onclick="removerDoPedido('${item.codigo}')" class="text-slate-400 hover:text-rose-500 p-1" title="Excluir item">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+
+            totalElement.innerText = totalGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+
+        function abrirModalCadastro(termo) {
+            const isEan = /^\d+$/.test(termo);
+            document.getElementById('cad-ean').value = isEan ? termo : '';
+            document.getElementById('cad-descricao').value = !isEan ? termo : '';
+            document.getElementById('cad-qtd').value = 1;
+            document.getElementById('cad-custo').value = '';
+
+            const selectCat = document.getElementById('cad-categoria');
+            selectCat.innerHTML = '';
+            
+            if (categoriasEncontradas.size === 0) {
+                categoriasEncontradas.add('GERAL');
+                categoriasEncontradas.add('BEBIDAS');
+                categoriasEncontradas.add('ALIMENTOS');
+                categoriasEncontradas.add('CONVENIENCIA');
+            }
+
+            categoriasEncontradas.forEach(cat => {
+                let opt = document.createElement('option');
+                opt.value = cat;
+                opt.textContent = cat;
+                selectCat.appendChild(opt);
+            });
+
+            modalCadastro.classList.remove('hidden');
+        }
+
+        formCadastrarProduto.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const ean = document.getElementById('cad-ean').value.trim();
+            const produto = document.getElementById('cad-descricao').value.trim();
+            const categoria = document.getElementById('cad-categoria').value;
+            const qtd = Number(document.getElementById('cad-qtd').value);
+            const custo = parseFloat(document.getElementById('cad-custo').value);
+
+            if (!qtd || qtd <= 0) {
+                alert("Informe uma quantidade válida.");
+                return;
+            }
+            if (isNaN(custo) || custo < 0) {
+                alert("Informe um preço de custo válido.");
+                return;
+            }
+
+            try {
+                const { data: cloudData, error } = await supabaseClient.from('nexxa_store').select('*');
+                if (error) throw error;
+
+                let regEstoque = cloudData.find(d => d.id === 'estoque' || d.id === 'ESTOQUE');
+                let estoqueData = regEstoque ? (regEstoque.data || {}) : {};
+                
+                let novoKey = "ITEM_" + Date.now();
+                estoqueData[novoKey] = {
+                    ean: ean,
+                    produto: produto,
+                    categoria: categoria,
+                    estoque: 0,
+                    custo: custo,
+                    cliente: 'Geral'
+                };
+
+                const { error: saveError } = await supabaseClient
+                    .from('nexxa_store')
+                    .update({ data: estoqueData })
+                    .eq('id', regEstoque.id);
+
+                if (saveError) throw saveError;
+
+                if (regEstoque) {
+                    regEstoque.data = estoqueData;
+                }
+
+                modalCadastro.classList.add('hidden');
+                
+                adicionarNovoProdutoAoPedido(ean, produto, categoria, qtd, custo);
+                
+                alert("Produto cadastrado e adicionado ao pedido com sucesso!");
+                buscar(ean);
+
+            } catch (err) {
+                alert("Erro ao cadastrar produto: " + err.message);
+            }
+        });
+
+        async function finalizarPedidoEntrada() {
+            if (usuarioLogado === 'Convidado') {
+                alert("O perfil Convidado não possui permissão para gravar/finalizar notas.");
+                return;
+            }
+
+            if (itensPedido.length === 0) {
+                alert("Adicione pelo menos um item ao pedido antes de finalizar.");
+                return;
+            }
+
+            const fornecedor = document.getElementById('input-fornecedor').value.trim();
+            if (!fornecedor) {
+                alert("Por favor, informe o nome do fornecedor.");
+                document.getElementById('input-fornecedor').focus();
+                return;
+            }
+
+            try {
+                // 1. Busca os dados mais recentes da nuvem para validar o número do pedido e atualizar o estoque
+                const { data: cloudData, error } = await supabaseClient.from('nexxa_store').select('*');
+                if (error) throw error;
+
+                let regEntradas = cloudData.find(d => d.id === 'entradas');
+                let entradasData = {};
+                
+                if (regEntradas && regEntradas.data && !Array.isArray(regEntradas.data)) {
+                    entradasData = regEntradas.data;
+                }
+
+                // CORREÇÃO: Verifica se o número de pedido atual já existe nas nuvens.
+                // Se já existir, incrementa até achar um número livre (seguindo a regra solicitada).
+                let numPedidoValidado = numeroPedidoAtual;
+                let numAtualStr = String(numPedidoValidado).padStart(4, '0');
+                
+                let pedidoJaExiste = Object.values(entradasData).some(nota => nota.numeroPedido === numAtualStr);
+                
+                while (pedidoJaExiste) {
+                    numPedidoValidado++;
+                    numAtualStr = String(numPedidoValidado).padStart(4, '0');
+                    pedidoJaExiste = Object.values(entradasData).some(nota => nota.numeroPedido === numAtualStr);
+                }
+
+                // Atualiza o estado global com o número seguro validado nas nuvens
+                numeroPedidoAtual = numPedidoValidado;
+
+                let regEstoque = cloudData.find(d => d.id === 'estoque' || d.id === 'ESTOQUE');
+                if (!regEstoque) throw new Error("Registro de estoque não encontrado.");
+
+                let estoqueData = regEstoque.data || {};
+
+                itensPedido.forEach(itemPedido => {
+                    let encontrado = false;
+                    for (let k in estoqueData) {
+                        let item = estoqueData[k];
+                        if (String(item.ean).trim() === itemPedido.codigo) {
+                            item.estoque = (Number(item.estoque) || 0) + itemPedido.qtd;
+                            item.custo = itemPedido.custo;
+                            item.fornecedor = fornecedor;
+                            encontrado = true;
+                            break;
+                        }
+                    }
+
+                    if (!encontrado) {
+                        let novoKey = "ITEM_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+                        estoqueData[novoKey] = {
+                            ean: itemPedido.codigo,
+                            produto: itemPedido.descricao,
+                            categoria: itemPedido.categoria,
+                            estoque: itemPedido.qtd,
+                            custo: itemPedido.custo,
+                            fornecedor: fornecedor,
+                            cliente: 'Geral'
+                        };
+                    }
+                });
+
+                const { error: updateError } = await supabaseClient
+                    .from('nexxa_store')
+                    .update({ data: estoqueData })
+                    .eq('id', regEstoque.id);
+
+                if (updateError) throw updateError;
+
+                const notaKey = "NOTA_" + Date.now();
+
+                entradasData[notaKey] = {
+                    numeroPedido: numAtualStr,
+                    fornecedor: fornecedor,
+                    usuarioEmissor: usuarioLogado,
+                    dataFinalizacao: new Date().toISOString(),
+                    itens: itensPedido,
+                    totalGeral: itensPedido.reduce((acc, i) => acc + i.subtotal, 0)
+                };
+
+                const { error: upsertError } = await supabaseClient
+                    .from('nexxa_store')
+                    .upsert({ id: 'entradas', data: entradasData });
+
+                if (upsertError) throw upsertError;
+
+                regEntradasBase = { id: 'entradas', data: entradasData };
+
+                alert(`Nota de Entrada #${numAtualStr} do fornecedor "${fornecedor}" finalizada por ${usuarioLogado} e salva nas nuvens com sucesso!`);
+                
+                delete rascunhos[String(numeroPedidoAtual)];
+                localStorage.setItem('nexxa_rascunhos_pedidos', JSON.stringify(rascunhos));
+
+                numeroPedidoAtual = obterProximoNumeroLivre();
+                localStorage.setItem('nexxa_num_pedido', numeroPedidoAtual);
+
+                itensPedido = [];
+                document.getElementById('input-fornecedor').value = '';
+                
+                carregarPedidoAtual();
+                atualizarListaPendentes();
+                resultsContainer.innerHTML = "";
+
+            } catch (err) {
+                console.error("Erro detalhado:", err);
+                alert("Erro ao finalizar nota de entrada: " + err.message);
+            }
         }
     </script>
 </body>
