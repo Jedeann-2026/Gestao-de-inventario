@@ -61,7 +61,7 @@
 
     <!-- CONTEÚDO PRINCIPAL DA CONSULTA -->
     <div id="app-container" class="max-w-md w-full mx-auto space-y-4">
-        <!-- HEADER / SCANNER -->
+        <!-- HEADER -->
         <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-xl transition-colors">
             
             <!-- LOGO DO SUPABASE NO CANTO ESQUERDO E TÍTULO -->
@@ -78,7 +78,7 @@
                 <span id="label-usuario-logado" class="text-[10px] text-slate-400 dark:text-slate-500 font-mono">Usuário: -</span>
             </div>
 
-            <div class="flex justify-between items-center mb-3">
+            <div class="flex justify-between items-center">
                 <div>
                     <span class="text-[11px] text-slate-500 dark:text-slate-400 block font-medium">Sistema de Gestão & Consulta</span>
                 </div>
@@ -93,28 +93,28 @@
                     </button>
                 </div>
             </div>
-
-            <!-- CONTAINER DO VÍDEO DA CÂMERA AO VIVO -->
-            <div id="video-wrapper" class="relative w-full bg-slate-900 rounded-xl overflow-hidden min-h-[220px] flex items-center justify-center mb-3 border border-slate-300 dark:border-slate-800">
-                <video id="video-preview" class="hidden"></video>
-                <div id="video-placeholder" class="text-center p-4">
-                    <i class="fa-solid fa-camera-retro text-slate-500 text-3xl mb-2 block"></i>
-                    <span class="text-xs text-slate-400 block">Câmera desativada</span>
-                </div>
-                <!-- LINHA GUIA DE LEITURA -->
-                <div id="scan-line" class="hidden absolute left-4 right-4 top-1/2 h-0.5 bg-rose-500 shadow-[0_0_8px_#f43f5e] animate-pulse pointer-events-none"></div>
-            </div>
-
-            <button id="btn-scan" onclick="toggleCameraZXing()" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-3.5 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-md">
-                <i class="fa-solid fa-barcode text-sm"></i> Ativar Câmera ao Vivo
-            </button>
         </div>
 
-        <!-- BUSCA MANUAL E FILTRO DE PERÍODO -->
+        <!-- CONTAINER DO VÍDEO DA CÂMERA AO VIVO (OCULTO POR PADRÃO) -->
+        <div id="video-wrapper" class="hidden relative w-full bg-slate-900 rounded-2xl p-3 border border-slate-300 dark:border-slate-800 shadow-xl transition-colors flex items-center justify-center min-h-[220px]">
+            <video id="video-preview" class="hidden"></video>
+            <div id="video-placeholder" class="text-center p-4">
+                <i class="fa-solid fa-camera-retro text-slate-500 text-3xl mb-2 block"></i>
+                <span class="text-xs text-slate-400 block">Câmera desativada</span>
+            </div>
+            <!-- LINHA GUIA DE LEITURA -->
+            <div id="scan-line" class="hidden absolute left-7 right-7 top-1/2 h-0.5 bg-rose-500 shadow-[0_0_8px_#f43f5e] animate-pulse pointer-events-none"></div>
+        </div>
+
+        <!-- BUSCA MANUAL, BOTÃO DA CÂMERA NA MESMA LINHA E FILTRO DE PERÍODO -->
         <div class="bg-white dark:bg-slate-900 rounded-2xl p-3 border border-slate-200 dark:border-slate-800 space-y-3 shadow-md transition-colors">
             <form id="form-manual" class="flex gap-2">
                 <input type="text" id="input-search" placeholder="Digite o EAN ou nome..." class="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-400">
-                <button type="submit" class="bg-slate-100 dark:bg-slate-800 text-amber-600 dark:text-amber-400 px-3 py-2 rounded-xl text-xs border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700">
+                <!-- Botão para ativar/parar câmera ao vivo na mesma linha -->
+                <button type="button" id="btn-scan" onclick="toggleCameraZXing()" class="bg-slate-800 hover:bg-slate-700 text-amber-400 px-3.5 py-2 rounded-xl text-xs transition border border-slate-700 shrink-0" title="Ativar Câmera ao Vivo">
+                    <i class="fa-solid fa-camera text-sm"></i>
+                </button>
+                <button type="submit" class="bg-amber-500 hover:bg-amber-600 text-slate-950 px-3.5 py-2 rounded-xl text-xs transition shrink-0 font-bold" title="Pesquisar">
                     <i class="fa-solid fa-magnifying-glass"></i>
                 </button>
             </form>
@@ -282,6 +282,7 @@
         }
 
         async function iniciarCameraZXing() {
+            const videoWrapper = document.getElementById('video-wrapper');
             const videoElem = document.getElementById('video-preview');
             const placeholderElem = document.getElementById('video-placeholder');
             const scanLine = document.getElementById('scan-line');
@@ -309,12 +310,17 @@
                 
                 selectedDeviceId = backCamera ? backCamera.deviceId : videoInputDevices[videoInputDevices.length - 1].deviceId;
 
+                // Mostra o container do vídeo
+                videoWrapper.classList.remove('hidden');
                 placeholderElem.classList.add('hidden');
                 videoElem.classList.remove('hidden');
                 scanLine.classList.remove('hidden');
 
-                btnScan.innerHTML = `<i class="fa-solid fa-stop text-sm"></i> Parar Câmera`;
-                btnScan.className = "w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3.5 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-md";
+                // Altera o visual do botão na barra de pesquisa para indicar estado ativo (vermelho/parar)
+                btnScan.innerHTML = `<i class="fa-solid fa-stop text-sm"></i>`;
+                btnScan.className = "bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-2 rounded-xl text-xs transition shrink-0 font-bold";
+                btnScan.title = "Parar Câmera";
+                
                 isCameraActive = true;
                 statusAlert.classList.add('hidden');
 
@@ -344,16 +350,21 @@
             }
             isCameraActive = false;
 
+            const videoWrapper = document.getElementById('video-wrapper');
             const videoElem = document.getElementById('video-preview');
             const placeholderElem = document.getElementById('video-placeholder');
             const scanLine = document.getElementById('scan-line');
 
+            // Oculta o container inteiro da câmera quando desativada
+            if (videoWrapper) videoWrapper.classList.add('hidden');
             if (videoElem) videoElem.classList.add('hidden');
             if (placeholderElem) placeholderElem.classList.remove('hidden');
             if (scanLine) scanLine.classList.add('hidden');
 
-            btnScan.innerHTML = `<i class="fa-solid fa-barcode text-sm"></i> Ativar Câmera ao Vivo`;
-            btnScan.className = "w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-3.5 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-md";
+            // Restaura o visual padrão do botão da câmera na linha de pesquisa
+            btnScan.innerHTML = `<i class="fa-solid fa-camera text-sm"></i>`;
+            btnScan.className = "bg-slate-800 hover:bg-slate-700 text-amber-400 px-3.5 py-2 rounded-xl text-xs transition border border-slate-700 shrink-0";
+            btnScan.title = "Ativar Câmera ao Vivo";
         }
 
         function dispararBuscaRecorrente() {
