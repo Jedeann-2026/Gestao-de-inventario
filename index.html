@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AB Conveniencia - Consulta - Mobile</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tailwindcss-cdn@3.4.10/tailwindcss.min.js"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -12,41 +12,14 @@
     </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://unpkg.com/html5-qrcode"></script>
+    <!-- LIB ZXING: EXCELENTE PARA CÂMERA AO VIVO NO SAFARI/IOS -->
+    <script type="text/javascript" src="https://unpkg.com/@zxing/library@latest"></script>
     <style>
-        #reader { position: relative; }
-        #reader video { object-fit: cover !important; border-radius: 0.75rem; }
-        
-        /* Moldura estilo Scanner de Código de Barras */
-        .scanner-laser-box {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80%;
-            height: 120px;
-            border: 2px solid rgba(245, 158, 11, 0.8);
-            border-radius: 12px;
-            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
-            pointer-events: none;
-            z-index: 10;
-        }
-
-        .scanner-laser-line {
-            position: absolute;
-            top: 50%;
-            left: 5%;
-            width: 90%;
-            height: 2px;
-            background-color: #ef4444;
-            box-shadow: 0 0 8px #ef4444;
-            transform: translateY(-50%);
-            animation: pulseLaser 1.5s infinite ease-in-out;
-        }
-
-        @keyframes pulseLaser {
-            0%, 100% { opacity: 0.4; }
-            50% { opacity: 1; }
+        #video-preview {
+            width: 100%;
+            height: 220px;
+            object-fit: cover;
+            border-radius: 0.75rem;
         }
     </style>
 </head>
@@ -90,12 +63,24 @@
     <div id="app-container" class="max-w-md w-full mx-auto space-y-4">
         <!-- HEADER / SCANNER -->
         <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-xl transition-colors">
+            
+            <!-- LOGO DO SUPABASE NO CANTO ESQUERDO E TÍTULO -->
+            <div class="flex items-center justify-between mb-3 pb-3 border-b border-slate-200 dark:border-slate-800">
+                <div class="flex items-center gap-2.5">
+                    <img id="app-logo" src="https://mjkqkyuolsqhtxwzivof.supabase.co/storage/v1/object/public/produtos-imagens/logoab.jpeg" 
+                         onerror="this.style.display='none'" 
+                         alt="AB Conveniência Logo" 
+                         class="h-7 w-auto object-contain rounded-lg">
+                    <h1 class="text-sm font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-barcode"></i> Consulta de Preços
+                    </h1>
+                </div>
+                <span id="label-usuario-logado" class="text-[10px] text-slate-400 dark:text-slate-500 font-mono">Usuário: -</span>
+            </div>
+
             <div class="flex justify-between items-center mb-3">
                 <div>
-                    <h1 class="text-base font-bold text-amber-600 dark:text-amber-400 flex items-center gap-2">
-                        <i class="fa-solid fa-barcode"></i> AB Conveniencia Consulta
-                    </h1>
-                    <span id="label-usuario-logado" class="text-[10px] text-slate-400 dark:text-slate-500 block">Usuário: -</span>
+                    <span class="text-[11px] text-slate-500 dark:text-slate-400 block font-medium">Sistema de Gestão & Consulta</span>
                 </div>
                 <div class="flex items-center gap-2">
                     <!-- BOTÃO SAIR / TROCAR USUÁRIO -->
@@ -109,11 +94,19 @@
                 </div>
             </div>
 
-            <div id="reader" class="w-full bg-slate-200 dark:bg-black rounded-xl overflow-hidden min-h-[200px] flex items-center justify-center mb-3 border border-slate-300 dark:border-slate-800">
-                <span class="text-xs text-slate-500 dark:text-slate-500">Câmera desativada</span>
+            <!-- CONTAINER DO VÍDEO DA CÂMERA AO VIVO -->
+            <div id="video-wrapper" class="relative w-full bg-slate-900 rounded-xl overflow-hidden min-h-[220px] flex items-center justify-center mb-3 border border-slate-300 dark:border-slate-800">
+                <video id="video-preview" class="hidden"></video>
+                <div id="video-placeholder" class="text-center p-4">
+                    <i class="fa-solid fa-camera-retro text-slate-500 text-3xl mb-2 block"></i>
+                    <span class="text-xs text-slate-400 block">Câmera desativada</span>
+                </div>
+                <!-- LINHA GUIA DE LEITURA -->
+                <div id="scan-line" class="hidden absolute left-4 right-4 top-1/2 h-0.5 bg-rose-500 shadow-[0_0_8px_#f43f5e] animate-pulse pointer-events-none"></div>
             </div>
-            <button id="btn-scan" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-3 rounded-xl text-xs transition">
-                Escanear Código
+
+            <button id="btn-scan" onclick="toggleCameraZXing()" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-3.5 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-md">
+                <i class="fa-solid fa-barcode text-sm"></i> Ativar Câmera ao Vivo
             </button>
         </div>
 
@@ -154,11 +147,15 @@
             "Convidado": ""
         };
 
-        let html5QrCode = null, isScanning = false;
         let regEstoque = null, regVendas = null, regEntradasBase = null;
         let isDataLoaded = false;
         let ultimoTermoPesquisado = '';
         let usuarioLogado = localStorage.getItem('nexxa_usuario_logado') || null;
+
+        // VARIÁVEIS DE CONTROLE DA CÂMERA (ZXING)
+        let codeReader = null;
+        let isCameraActive = false;
+        let selectedDeviceId = null;
 
         const modalLogin = document.getElementById('modal-login');
         const loginErro = document.getElementById('login-erro');
@@ -191,12 +188,12 @@
 
         function fazerLogout() {
             if (confirm("Deseja trocar de usuário / sair da sessão?")) {
+                pararCameraZXing();
                 localStorage.removeItem('nexxa_usuario_logado');
                 usuarioLogado = null;
                 document.getElementById('login-senha').value = '';
                 loginErro.classList.add('hidden');
                 modalLogin.classList.remove('hidden');
-                pararCameraTotal();
             }
         }
 
@@ -275,6 +272,90 @@
             carregarDadosMemoria();
         });
 
+        // CONTROLADOR DE CÂMERA AO VIVO COM ZXING (ALTAMENTE COMPATÍVEL COM SAFARI/IOS)
+        function toggleCameraZXing() {
+            if (isCameraActive) {
+                pararCameraZXing();
+            } else {
+                iniciarCameraZXing();
+            }
+        }
+
+        async function iniciarCameraZXing() {
+            const videoElem = document.getElementById('video-preview');
+            const placeholderElem = document.getElementById('video-placeholder');
+            const scanLine = document.getElementById('scan-line');
+
+            statusAlert.innerText = "Solicitando acesso à câmera...";
+            statusAlert.className = "p-2 rounded-xl text-xs text-center bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800";
+            statusAlert.classList.remove('hidden');
+
+            try {
+                if (!codeReader) {
+                    codeReader = new ZXing.BrowserMultiFormatReader();
+                }
+
+                const videoInputDevices = await codeReader.listVideoInputDevices();
+                
+                if (videoInputDevices.length === 0) {
+                    throw new Error("Nenhuma câmera encontrada no aparelho.");
+                }
+
+                let backCamera = videoInputDevices.find(device => 
+                    device.label.toLowerCase().includes('back') || 
+                    device.label.toLowerCase().includes('traseira') ||
+                    device.label.toLowerCase().includes('environment')
+                );
+                
+                selectedDeviceId = backCamera ? backCamera.deviceId : videoInputDevices[videoInputDevices.length - 1].deviceId;
+
+                placeholderElem.classList.add('hidden');
+                videoElem.classList.remove('hidden');
+                scanLine.classList.remove('hidden');
+
+                btnScan.innerHTML = `<i class="fa-solid fa-stop text-sm"></i> Parar Câmera`;
+                btnScan.className = "w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3.5 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-md";
+                isCameraActive = true;
+                statusAlert.classList.add('hidden');
+
+                codeReader.decodeFromVideoDevice(selectedDeviceId, 'video-preview', (result, err) => {
+                    if (result) {
+                        const eanLido = result.getText().trim();
+                        if (navigator.vibrate) navigator.vibrate(100);
+
+                        inputSearch.value = eanLido;
+                        pararCameraZXing();
+                        buscar(eanLido);
+                    }
+                });
+
+            } catch (err) {
+                console.error(err);
+                statusAlert.innerText = "Erro ao abrir câmera. Verifique se deu permissão no Safari/iOS.";
+                statusAlert.className = "p-2 rounded-xl text-xs text-center bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800";
+                statusAlert.classList.remove('hidden');
+                pararCameraZXing();
+            }
+        }
+
+        function pararCameraZXing() {
+            if (codeReader) {
+                codeReader.reset();
+            }
+            isCameraActive = false;
+
+            const videoElem = document.getElementById('video-preview');
+            const placeholderElem = document.getElementById('video-placeholder');
+            const scanLine = document.getElementById('scan-line');
+
+            if (videoElem) videoElem.classList.add('hidden');
+            if (placeholderElem) placeholderElem.classList.remove('hidden');
+            if (scanLine) scanLine.classList.add('hidden');
+
+            btnScan.innerHTML = `<i class="fa-solid fa-barcode text-sm"></i> Ativar Câmera ao Vivo`;
+            btnScan.className = "w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-3.5 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-md";
+        }
+
         function dispararBuscaRecorrente() {
             if (ultimoTermoPesquisado) {
                 buscar(ultimoTermoPesquisado, false);
@@ -284,7 +365,6 @@
         function obterUltimoPrecoCompra(eanAlvo) {
             if (!regEntradasBase) return 0;
 
-            // Suporta caso regEntradasBase seja um array de objetos ou um objeto único contendo .data
             let listaEntradas = [];
             if (Array.isArray(regEntradasBase)) {
                 listaEntradas = regEntradasBase;
@@ -300,12 +380,11 @@
             let ultimoPreco = 0;
 
             listaEntradas.forEach(nota => {
-                // Cada registo de nota pode ser um objeto direto ou conter itens
                 let itensNota = [];
                 if (nota.itens && Array.isArray(nota.itens)) {
                     itensNota = nota.itens;
                 } else if (nota.ean && (nota.precoUnit || nota.custo)) {
-                    itensNota = [nota]; // Se a própria nota for o item
+                    itensNota = [nota];
                 }
 
                 itensNota.forEach(item => {
@@ -326,85 +405,6 @@
             });
 
             return ultimoPreco;
-        }
-
-        // BOTÃO DE LIGA/DESLIGA DA CÂMARA COM MIRA LASER (OTIMIZADO)
-        btnScan.addEventListener('click', async () => {
-            if (isScanning) {
-                await pararCameraTotal();
-            } else {
-                await iniciarCameraTotal();
-            }
-        });
-
-        async function iniciarCameraTotal() {
-            const readerElement = document.getElementById('reader');
-            readerElement.innerHTML = ''; 
-
-            html5QrCode = new Html5Qrcode("reader");
-
-            const config = { 
-                fps: 25, 
-                qrbox: { width: 280, height: 120 },
-                aspectRatio: 1.777778,
-                formatsToSupport: [
-                    Html5QrcodeSupportedFormats.EAN_13,
-                    Html5QrcodeSupportedFormats.EAN_8,
-                    Html5QrcodeSupportedFormats.UPC_A,
-                    Html5QrcodeSupportedFormats.UPC_E,
-                    Html5QrcodeSupportedFormats.CODE_128
-                ]
-            };
-
-            try {
-                await html5QrCode.start(
-                    { facingMode: "environment" }, 
-                    config, 
-                    async (text) => {
-                        await pararCameraTotal();
-                        inputSearch.value = text.trim();
-                        buscar(text.trim());
-                    }, 
-                    () => {}
-                );
-
-                isScanning = true; 
-                btnScan.innerText = "Parar Câmera"; 
-                btnScan.classList.replace('bg-amber-500', 'bg-rose-600');
-                btnScan.classList.replace('text-slate-950', 'text-white');
-
-            } catch (err) {
-                console.error("Erro ao iniciar câmara:", err);
-                statusAlert.innerText = "Erro na câmara. Verifique as permissões.";
-                statusAlert.className = "p-2 rounded-xl text-xs text-center bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800";
-                statusAlert.classList.remove('hidden');
-                isScanning = false;
-                btnScan.innerText = "Escanear Código";
-            }
-        }
-
-
-        async function pararCameraTotal() {
-            if (html5QrCode) {
-                try {
-                    if (html5QrCode.isScanning) {
-                        await html5QrCode.stop();
-                    }
-                    await html5QrCode.clear();
-                } catch (e) {
-                    console.error("Erro ao limpar câmara:", e);
-                }
-                html5QrCode = null;
-            }
-            isScanning = false;
-            btnScan.innerText = "Escanear Código";
-            btnScan.classList.replace('bg-rose-600', 'bg-amber-500');
-            btnScan.classList.replace('text-white', 'text-slate-950');
-            
-            const readerElement = document.getElementById('reader');
-            if (readerElement) {
-                readerElement.innerHTML = `<span class="text-xs text-slate-500">Câmera desativada</span>`;
-            }
         }
 
         formManual.addEventListener('submit', (e) => {
@@ -431,7 +431,6 @@
             let produtosMap = {};
             const termoUpper = termo.toUpperCase();
 
-            // 1. Busca primeiro todos os itens no ESTOQUE (mesmo sem vendas)
             if (regEstoque && regEstoque.data) {
                 for (let k in regEstoque.data) {
                     let item = regEstoque.data[k];
@@ -452,7 +451,6 @@
                 }
             }
 
-            // 2. Complementa com produtos das VENDAS (caso existam)
             if (regVendas && regVendas.data) {
                 regVendas.data.forEach(v => {
                     let ean = v.ean ? String(v.ean).trim() : '';
@@ -493,7 +491,6 @@
                 let totalVendidoGeral = 0;
                 let qtdVendidaGeral = 0;
 
-                // Processar Estoque por Cliente/Loja
                 if (regEstoque && regEstoque.data) {
                     for (let k in regEstoque.data) {
                         let item = regEstoque.data[k];
@@ -514,7 +511,6 @@
                     }
                 }
 
-                // Processar Vendas no período selecionado
                 if (regVendas && regVendas.data) {
                     regVendas.data.forEach(v => {
                         if (String(v.ean).trim() === info.codigo) {
@@ -610,7 +606,6 @@
                     });
                 }
 
-                // URL da imagem no Supabase Storage e Fallback
                 const urlImagem = `https://mjkqkyuolsqhtxwzivof.supabase.co/storage/v1/object/public/produtos-imagens/${info.codigo}.jpg`;
                 const imgFallback = "https://via.placeholder.com/80?text=Sem+Foto";
 
@@ -636,7 +631,6 @@
                         <span>Total: <strong class="text-amber-600 dark:text-amber-400">${estoqueGeralTotal}</strong></span>
                     </div>
 
-                    <!-- Totalizador de Vendas e Preço de Custo no Período -->
                     <div class="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 p-2.5 rounded-xl text-xs space-y-1">
                         <div class="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold uppercase"><i class="fa-solid fa-chart-pie mr-1"></i> Resumo de Vendas (Período)</div>
                         <div class="flex justify-between font-mono">
@@ -646,7 +640,6 @@
                         ${ultimoPrecoHtml}
                     </div>
 
-                    <!-- Detalhado por Loja (Preço, Estoque e Vendas) -->
                     <div class="space-y-1">
                         <div class="text-[11px] font-semibold text-slate-700 dark:text-slate-300"><i class="fa-solid fa-store mr-1"></i> Detalhes por Loja</div>
                         <div class="max-h-44 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-950">
