@@ -64,7 +64,6 @@
         <!-- HEADER -->
         <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-xl transition-colors">
             
-            <!-- LOGO DO SUPABASE NO CANTO ESQUERDO E TÍTULO -->
             <div class="flex items-center justify-between mb-3 pb-3 border-b border-slate-200 dark:border-slate-800">
                 <div class="flex items-center gap-2.5">
                     <img id="app-logo" src="https://mjkqkyuolsqhtxwzivof.supabase.co/storage/v1/object/public/produtos-imagens/logoab.jpeg" 
@@ -83,11 +82,9 @@
                     <span class="text-[11px] text-slate-500 dark:text-slate-400 block font-medium">Sistema de Gestão & Consulta</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <!-- BOTÃO SAIR / TROCAR USUÁRIO -->
                     <button onclick="fazerLogout()" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-rose-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition" title="Sair / Trocar Usuário">
                         <i class="fa-solid fa-right-from-bracket text-sm"></i>
                     </button>
-                    <!-- BOTÃO DIA / NOITE -->
                     <button id="btn-theme-toggle" onclick="alternarTema()" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-amber-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition" title="Alternar Tema Dia/Noite">
                         <i id="theme-icon" class="fa-solid fa-sun text-sm"></i>
                     </button>
@@ -95,22 +92,20 @@
             </div>
         </div>
 
-        <!-- CONTAINER DO VÍDEO DA CÂMERA AO VIVO (OCULTO POR PADRÃO) -->
+        <!-- CONTAINER DO VÍDEO DA CÂMERA AO VIVO -->
         <div id="video-wrapper" class="hidden relative w-full bg-slate-900 rounded-2xl p-3 border border-slate-300 dark:border-slate-800 shadow-xl transition-colors flex items-center justify-center min-h-[220px]">
             <video id="video-preview" class="hidden"></video>
             <div id="video-placeholder" class="text-center p-4">
                 <i class="fa-solid fa-camera-retro text-slate-500 text-3xl mb-2 block"></i>
                 <span class="text-xs text-slate-400 block">Câmera desativada</span>
             </div>
-            <!-- LINHA GUIA DE LEITURA -->
             <div id="scan-line" class="hidden absolute left-7 right-7 top-1/2 h-0.5 bg-rose-500 shadow-[0_0_8px_#f43f5e] animate-pulse pointer-events-none"></div>
         </div>
 
-        <!-- BUSCA MANUAL, BOTÃO DA CÂMERA NA MESMA LINHA E FILTRO DE PERÍODO -->
+        <!-- BUSCA MANUAL E FILTRO DE PERÍODO -->
         <div class="bg-white dark:bg-slate-900 rounded-2xl p-3 border border-slate-200 dark:border-slate-800 space-y-3 shadow-md transition-colors">
             <form id="form-manual" class="flex gap-2">
                 <input type="text" id="input-search" placeholder="Digite o EAN ou nome..." class="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-400">
-                <!-- Botão para ativar/parar câmera ao vivo na mesma linha -->
                 <button type="button" id="btn-scan" onclick="toggleCameraZXing()" class="bg-slate-800 hover:bg-slate-700 text-amber-400 px-3.5 py-2 rounded-xl text-xs transition border border-slate-700 shrink-0" title="Ativar Câmera ao Vivo">
                     <i class="fa-solid fa-camera text-sm"></i>
                 </button>
@@ -140,6 +135,7 @@
         const SUPABASE_KEY = "sb_publishable_taL59MpBnTvHmpfD8eMSnw_f2QuR6w-";
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        // SENHAS E CONTROLE DE USUÁRIOS
         const SENHAS_USUARIOS = {
             "Jedeann": "1234",
             "Cristiane": "1234",
@@ -152,7 +148,6 @@
         let ultimoTermoPesquisado = '';
         let usuarioLogado = localStorage.getItem('nexxa_usuario_logado') || null;
 
-        // VARIÁVEIS DE CONTROLE DA CÂMERA (ZXING)
         let codeReader = null;
         let isCameraActive = false;
         let selectedDeviceId = null;
@@ -167,7 +162,6 @@
         const resultsContainer = document.getElementById('results-container');
         const statusAlert = document.getElementById('status-alert');
 
-        // FUNÇÃO DE LOGIN E CONTROLE DE SESSÃO
         function fazerLogin(e) {
             e.preventDefault();
             const usuario = document.getElementById('login-usuario').value;
@@ -182,7 +176,6 @@
             usuarioLogado = usuario;
             localStorage.setItem('nexxa_usuario_logado', usuario);
             modalLogin.classList.add('hidden');
-            
             atualizarLabelUsuario();
         }
 
@@ -202,21 +195,18 @@
             if (labelUsuario) labelUsuario.innerText = `Usuário: ${usuarioLogado}`;
         }
 
-        // CONFIGURAÇÃO DOS ÚLTIMOS 7 DIAS (TIRANDO O DIA ATUAL)
+        // CORREÇÃO APLICADA: Data final assume o dia de hoje (ex: 11/11)
         function inicializarFiltroDatas() {
             const hoje = new Date();
-            
-            const dataFim = new Date(hoje);
-            dataFim.setDate(hoje.getDate() - 1); // Ontem
+            const dataFim = new Date(hoje); // Data final = hoje
             
             const dataInicio = new Date(dataFim);
-            dataInicio.setDate(dataFim.getDate() - 6); // 7 dias atrás
+            dataInicio.setDate(dataFim.getDate() - 6); // 6 dias atrás para fechar 7 dias de intervalo
 
             filtroInicio.value = dataInicio.toISOString().split('T')[0];
             filtroFim.value = dataFim.toISOString().split('T')[0];
         }
 
-        // CONTROLE DE TEMA (CLARO / ESCURO)
         function inicializarTema() {
             const temaSalvo = localStorage.getItem('nexxa_tema');
             if (temaSalvo === 'dark' || (!temaSalvo && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -243,16 +233,33 @@
 
         async function carregarDadosMemoria() {
             try {
+                statusAlert.innerText = "Conectando ao Supabase e carregando dados...";
+                statusAlert.className = "p-2 rounded-xl text-xs text-center bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800";
+                statusAlert.classList.remove('hidden');
+
                 const { data: cloudData, error } = await supabaseClient.from('nexxa_store').select('*');
                 if (error) throw error;
 
-                regEstoque = cloudData.find(d => d.id === 'estoque' || d.id === 'ESTOQUE');
-                regVendas = cloudData.find(d => d.id === 'vendas');
-                regEntradasBase = cloudData.find(d => d.id === 'entradas');
+                if (!cloudData || cloudData.length === 0) {
+                    throw new Error("A tabela 'nexxa_store' está vazia no Supabase.");
+                }
+
+                regEstoque = cloudData.find(d => String(d.id || '').trim().toLowerCase() === 'estoque');
+                regVendas = cloudData.find(d => String(d.id || '').trim().toLowerCase() === 'vendas');
+                regEntradasBase = cloudData.find(d => {
+                    const id = String(d.id || '').trim().toLowerCase();
+                    return id === 'entradas' || id === 'compras';
+                });
+
+                console.log("=== SUPABASE DADOS CARREGADOS ===");
+                console.log("Estoque:", regEstoque);
+                console.log("Vendas:", regVendas);
+                console.log("Entradas:", regEntradasBase);
+
                 isDataLoaded = true;
-                
                 statusAlert.classList.add('hidden');
             } catch (err) {
+                console.error("Erro ao carregar dados:", err);
                 statusAlert.innerText = "Erro ao carregar dados: " + err.message;
                 statusAlert.className = "p-2 rounded-xl text-xs text-center bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800";
             }
@@ -272,7 +279,6 @@
             carregarDadosMemoria();
         });
 
-        // CONTROLADOR DE CÂMERA AO VIVO COM ZXING (ALTAMENTE COMPATÍVEL COM SAFARI/IOS)
         function toggleCameraZXing() {
             if (isCameraActive) {
                 pararCameraZXing();
@@ -297,10 +303,7 @@
                 }
 
                 const videoInputDevices = await codeReader.listVideoInputDevices();
-                
-                if (videoInputDevices.length === 0) {
-                    throw new Error("Nenhuma câmera encontrada no aparelho.");
-                }
+                if (videoInputDevices.length === 0) throw new Error("Nenhuma câmera encontrada.");
 
                 let backCamera = videoInputDevices.find(device => 
                     device.label.toLowerCase().includes('back') || 
@@ -310,13 +313,11 @@
                 
                 selectedDeviceId = backCamera ? backCamera.deviceId : videoInputDevices[videoInputDevices.length - 1].deviceId;
 
-                // Mostra o container do vídeo
                 videoWrapper.classList.remove('hidden');
                 placeholderElem.classList.add('hidden');
                 videoElem.classList.remove('hidden');
                 scanLine.classList.remove('hidden');
 
-                // Altera o visual do botão na barra de pesquisa para indicar estado ativo (vermelho/parar)
                 btnScan.innerHTML = `<i class="fa-solid fa-stop text-sm"></i>`;
                 btnScan.className = "bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-2 rounded-xl text-xs transition shrink-0 font-bold";
                 btnScan.title = "Parar Câmera";
@@ -328,16 +329,14 @@
                     if (result) {
                         const eanLido = result.getText().trim();
                         if (navigator.vibrate) navigator.vibrate(100);
-
                         inputSearch.value = eanLido;
                         pararCameraZXing();
                         buscar(eanLido);
                     }
                 });
-
             } catch (err) {
                 console.error(err);
-                statusAlert.innerText = "Erro ao abrir câmera. Verifique se deu permissão no Safari/iOS.";
+                statusAlert.innerText = "Erro ao abrir câmera. Verifique permissões no Safari/iOS.";
                 statusAlert.className = "p-2 rounded-xl text-xs text-center bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800";
                 statusAlert.classList.remove('hidden');
                 pararCameraZXing();
@@ -345,9 +344,7 @@
         }
 
         function pararCameraZXing() {
-            if (codeReader) {
-                codeReader.reset();
-            }
+            if (codeReader) codeReader.reset();
             isCameraActive = false;
 
             const videoWrapper = document.getElementById('video-wrapper');
@@ -355,13 +352,11 @@
             const placeholderElem = document.getElementById('video-placeholder');
             const scanLine = document.getElementById('scan-line');
 
-            // Oculta o container inteiro da câmera quando desativada
             if (videoWrapper) videoWrapper.classList.add('hidden');
             if (videoElem) videoElem.classList.add('hidden');
             if (placeholderElem) placeholderElem.classList.remove('hidden');
             if (scanLine) scanLine.classList.add('hidden');
 
-            // Restaura o visual padrão do botão da câmera na linha de pesquisa
             btnScan.innerHTML = `<i class="fa-solid fa-camera text-sm"></i>`;
             btnScan.className = "bg-slate-800 hover:bg-slate-700 text-amber-400 px-3.5 py-2 rounded-xl text-xs transition border border-slate-700 shrink-0";
             btnScan.title = "Ativar Câmera ao Vivo";
@@ -387,35 +382,35 @@
                 }
             }
 
-            let ultimaData = 0;
-            let ultimoPreco = 0;
+            let ultimaDataTimestamp = -1;
+            let ultimoPrecoEncontrado = 0;
 
             listaEntradas.forEach(nota => {
                 let itensNota = [];
                 if (nota.itens && Array.isArray(nota.itens)) {
                     itensNota = nota.itens;
-                } else if (nota.ean && (nota.precoUnit || nota.custo)) {
+                } else if (nota.ean && (nota.precoUnit || nota.custo || nota.vlrUnit)) {
                     itensNota = [nota];
                 }
 
                 itensNota.forEach(item => {
                     let itemEan = String(item.ean || item.codigo || item.eanProduto || '').trim();
                     if (itemEan === String(eanAlvo).trim()) {
-                        let dataNotaStr = nota.data || nota.dataFinalizacao || item.data || '';
-                        let dataNota = dataNotaStr ? new Date(dataNotaStr).getTime() : 0;
+                        let dataNotaStr = nota.data || nota.dataFinalizacao || nota.created_at || item.data || '';
+                        let dataNotaTimestamp = dataNotaStr ? new Date(dataNotaStr).getTime() : 0;
                         
-                        if (dataNota >= ultimaData) {
-                            ultimaData = dataNota;
+                        if (dataNotaTimestamp >= ultimaDataTimestamp) {
+                            ultimaDataTimestamp = dataNotaTimestamp;
                             let preco = Number(item.precoUnit || item.custo || item.vlrUnit || item.precoCusto || 0);
                             if (preco > 0) {
-                                ultimoPreco = preco;
+                                ultimoPrecoEncontrado = preco;
                             }
                         }
                     }
                 });
             });
 
-            return ultimoPreco;
+            return ultimoPrecoEncontrado;
         }
 
         formManual.addEventListener('submit', (e) => {
@@ -442,12 +437,13 @@
             let produtosMap = {};
             const termoUpper = termo.toUpperCase();
 
+            // 1. Busca no Cadastro / Estoque
             if (regEstoque && regEstoque.data) {
-                for (let k in regEstoque.data) {
-                    let item = regEstoque.data[k];
+                let dadosEstoque = Array.isArray(regEstoque.data) ? regEstoque.data : Object.values(regEstoque.data);
+                dadosEstoque.forEach(item => {
                     let ean = item.ean ? String(item.ean).trim() : '';
                     let nome = item.produto ? String(item.produto).trim().toUpperCase() : '';
-                    if (!ean || ean === '' || ean === '0') continue;
+                    if (!ean || ean === '' || ean === '0') return;
                     if (ean.includes(termo) || nome.includes(termoUpper)) {
                         if (!produtosMap[ean]) {
                             produtosMap[ean] = { 
@@ -459,19 +455,21 @@
                             };
                         }
                     }
-                }
+                });
             }
 
+            // 2. Busca nas Vendas
             if (regVendas && regVendas.data) {
-                regVendas.data.forEach(v => {
-                    let ean = v.ean ? String(v.ean).trim() : '';
-                    let nome = v.produto ? String(v.produto).trim().toUpperCase() : '';
+                let dadosVendas = Array.isArray(regVendas.data) ? regVendas.data : Object.values(regVendas.data);
+                dadosVendas.forEach(v => {
+                    let ean = String(v.ean || v.codigo || v.eanProduto || '').trim();
+                    let nome = String(v.produto || v.descricao || '').trim().toUpperCase();
                     if (!ean || ean === '' || ean === '0') return;
                     if (ean.includes(termo) || nome.includes(termoUpper)) {
                         if (!produtosMap[ean]) {
                             produtosMap[ean] = { 
                                 codigo: ean, 
-                                descricao: v.produto, 
+                                descricao: v.produto || v.descricao || 'Produto sem descrição', 
                                 categoria: v.categoria || 'GERAL', 
                                 custo: 0,
                                 precoVendaCadastro: 0
@@ -493,8 +491,16 @@
             statusAlert.classList.add('hidden');
             resultsContainer.innerHTML = "";
 
-            const dataInicioVal = filtroInicio.value ? new Date(filtroInicio.value + 'T00:00:00') : null;
-            const dataFimVal = filtroFim.value ? new Date(filtroFim.value + 'T23:59:59') : null;
+            // PARSE DAS DATAS DE FILTRO IGNORANDO FUSO HORÁRIO
+            let tInicio = null, tFim = null;
+            if (filtroInicio.value) {
+                let parts = filtroInicio.value.split('-');
+                tInicio = new Date(parts[0], parts[1] - 1, parts[2], 0, 0, 0).getTime();
+            }
+            if (filtroFim.value) {
+                let parts = filtroFim.value.split('-');
+                tFim = new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59).getTime();
+            }
 
             lista.forEach(info => {
                 let clientMap = {}, cdTotal = 0, lojaTotalSum = 0;
@@ -502,9 +508,10 @@
                 let totalVendidoGeral = 0;
                 let qtdVendidaGeral = 0;
 
+                // Processa Estoque
                 if (regEstoque && regEstoque.data) {
-                    for (let k in regEstoque.data) {
-                        let item = regEstoque.data[k];
+                    let dadosEstoque = Array.isArray(regEstoque.data) ? regEstoque.data : Object.values(regEstoque.data);
+                    dadosEstoque.forEach(item => {
                         if (String(item.ean).trim() === info.codigo) {
                             let cliente = (item.cliente || 'Geral').trim();
                             let qtd = Number(item.estoque) || 0;
@@ -519,14 +526,18 @@
                                 lojaTotalSum += qtd;
                             }
                         }
-                    }
+                    });
                 }
 
+                // Processa Vendas filtrando rigidamente por Período
                 if (regVendas && regVendas.data) {
-                    regVendas.data.forEach(v => {
-                        if (String(v.ean).trim() === info.codigo) {
-                            let loja = (v.cliente || v.loja || 'Geral').trim();
-                            let preco = parseFloat(v.vlrUnit || v.valorUnitario || 0);
+                    let dadosVendas = Array.isArray(regVendas.data) ? regVendas.data : Object.values(regVendas.data);
+
+                    dadosVendas.forEach(v => {
+                        let eanVenda = String(v.ean || v.codigo || v.eanProduto || '').trim();
+                        if (eanVenda === info.codigo) {
+                            let loja = String(v.cliente || v.loja || v.filial || 'Geral').trim();
+                            let preco = parseFloat(v.vlrUnit || v.valorUnitario || v.preco || v.valor || 0);
                             let qtdV = Number(v.qtd || v.quantidade || 1);
 
                             if (!clientMap[loja]) {
@@ -536,18 +547,23 @@
                                 clientMap[loja].preco = preco;
                             }
 
-                            let dataVendaStr = v.data || v.dataVenda || v.created_at || '';
+                            let dataVendaStr = v.data || v.dataVenda || v.created_at || v.dataHora || '';
                             let dentroDoPeriodo = true;
-                            if (dataInicioVal || dataFimVal) {
+
+                            if (tInicio !== null || tFim !== null) {
                                 if (!dataVendaStr) {
                                     dentroDoPeriodo = false;
                                 } else {
-                                    let dataVendaObj = new Date(dataVendaStr);
-                                    if (isNaN(dataVendaObj)) {
-                                        dentroDoPeriodo = false;
+                                    // Extrai AAAA-MM-DD para neutralizar fusos horários
+                                    let dataPura = String(dataVendaStr).split('T')[0].split(' ')[0];
+                                    let partsV = dataPura.split('-');
+                                    
+                                    if (partsV.length === 3) {
+                                        let tVenda = new Date(partsV[0], partsV[1] - 1, partsV[2], 12, 0, 0).getTime();
+                                        if (tInicio !== null && tVenda < tInicio) dentroDoPeriodo = false;
+                                        if (tFim !== null && tVenda > tFim) dentroDoPeriodo = false;
                                     } else {
-                                        if (dataInicioVal && dataVendaObj < dataInicioVal) dentroDoPeriodo = false;
-                                        if (dataFimVal && dataVendaObj > dataFimVal) dentroDoPeriodo = false;
+                                        dentroDoPeriodo = false;
                                     }
                                 }
                             }
@@ -569,17 +585,16 @@
 
                 let estoqueGeralTotal = lojaTotalSum + cdTotal;
                 let ultimoPrecoCompra = obterUltimoPrecoCompra(info.codigo);
-
                 let me_custo = ultimoPrecoCompra > 0 ? ultimoPrecoCompra : (info.custo || 0);
+
                 let ultimoPrecoHtml = `
                     <div class="flex justify-between font-mono text-cyan-600 dark:text-cyan-400 pt-1 border-t border-emerald-200 dark:border-emerald-900/40 text-xs">
-                        <span>Último Preço Custo:</span>
+                        <span>Último Preço de Entrada:</span>
                         <strong>${Number(me_custo).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong>
                     </div>
                 `;
 
                 let todasLojasSet = new Set([...Object.keys(clientMap), ...Object.keys(vendasPorLojaMap)]);
-
                 let detalhesLojaHtml = "";
 
                 if (todasLojasSet.size === 0) {
@@ -643,7 +658,7 @@
                     </div>
 
                     <div class="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 p-2.5 rounded-xl text-xs space-y-1">
-                        <div class="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold uppercase"><i class="fa-solid fa-chart-pie mr-1"></i> Resumo de Vendas (Período)</div>
+                        <div class="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold uppercase"><i class="fa-solid fa-chart-pie mr-1"></i> Resumo de Vendas (Período Selecionado)</div>
                         <div class="flex justify-between font-mono">
                             <span>Qtd Vendida: <strong class="text-slate-900 dark:text-white">${qtdVendidaGeral} un</strong></span>
                             <span>Total Faturado: <strong class="text-emerald-600 dark:text-emerald-400">${totalVendidoGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong></span>
